@@ -85,9 +85,14 @@ private fun SocytoApp() {
         selectedProject = project
         busy = true
         updates = emptyList()
-        api.async({ api.publications(authenticated, project) }) { result ->
+        api.async({
+            api.publications(authenticated, project) to api.branding(authenticated, project.businessId)
+        }) { result ->
             busy = false
-            result.onSuccess { updates = it }.onFailure { message = it.message ?: "Unable to read published updates." }
+            result.onSuccess { (published, tenantBrand) ->
+                updates = published
+                branding = tenantBrand
+            }.onFailure { message = it.message ?: "Unable to read published updates." }
         }
     }
 
