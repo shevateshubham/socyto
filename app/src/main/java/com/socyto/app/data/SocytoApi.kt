@@ -73,7 +73,7 @@ class SocytoApi {
     fun branding(session: Session, businessId: String): BusinessBranding {
         val rows = getRows(
             "business_branding",
-            "business_id,display_name,logo_url,primary_color_hex,secondary_color_hex,accent_color_hex,background_color_hex,text_color_hex",
+            "business_id,display_name,logo_url,logo_storage_path,primary_color_hex,secondary_color_hex,accent_color_hex,background_color_hex,text_color_hex",
             "business_id=eq.${encode(businessId)}",
             session
         )
@@ -87,13 +87,76 @@ class SocytoApi {
         return BusinessBranding(
             businessId = businessId,
             displayName = BrandValidator.displayNameOrFallback(stringOrNull("display_name"), "Project workspace"),
-            logoUrl = BrandValidator.logoUrlOrNull(stringOrNull("logo_url"), BuildConfig.SUPABASE_URL),
+            logoUrl = stringOrNull("logo_storage_path")?.let { logoPath ->
+                BrandValidator.logoUrlOrNull(
+                    BuildConfig.SUPABASE_URL.trimEnd('/') +
+                        "/storage/v1/object/public/business-logos/" + logoPath,
+                    BuildConfig.SUPABASE_URL
+                )
+            } ?: BrandValidator.logoUrlOrNull(stringOrNull("logo_url"), BuildConfig.SUPABASE_URL),
+            logoStoragePath = stringOrNull("logo_storage_path"),
             primaryColorHex = BrandValidator.colorOrDefault(stringOrNull("primary_color_hex"), "#2E4A2B"),
             secondaryColorHex = BrandValidator.colorOrDefault(stringOrNull("secondary_color_hex"), "#6B8E49"),
             accentColorHex = BrandValidator.colorOrDefault(stringOrNull("accent_color_hex"), "#D4AF7C"),
             backgroundColorHex = BrandValidator.colorOrDefault(stringOrNull("background_color_hex"), "#F7F5F0"),
             textColorHex = BrandValidator.colorOrDefault(stringOrNull("text_color_hex"), "#1F1F1F")
         )
+    }
+
+    /** Restricted by storage bucket RLS to Super Admin and at most 2 MB. */
+    fun uploadBusinessLogo(
+        session: Session, businessId: String,
+        imageBytes: ByteArray, contentType: String
+    ): String {
+        check(imageBytes.isNotEmpty() && imageBytes.size <= 2 * 1024 * 1024) {
+            "Logo must be smaller than 2 MB."
+        }
+        val extension = when (contentType) {
+            "image/png" -> "png"
+            "image/jpeg" -> "jpg"
+            "image/webp" -> "webp"
+            else -> error("Choose PNG, JPG, or WebP.")
+        }
+        val businessUuid = java.util.UUID.fromString(businessId).toString()
+        val objectName = businessUuid + "/" + java.util.UUID.randomUUID().toString() + "." + extension
+        val url = URL(
+            BuildConfig.SUPABASE_URL.trimEnd('/') +
+                "/storage/v1/object/business-logos/" + objectName
+        )
+        check(url.protocol == "https") { "HTTPS connection required." }
+        val connection = url.openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "POST"
+            connection.instanceFollowRedirects = false
+            connection.connectTimeout = 12000
+            connection.readTimeout = 15000
+            connection.setRequestProperty("apikey", BuildConfig.SUPABASE_PUBLISHABLE_KEY)
+            connection.setRequestProperty("Authorization", "Bearer ${session.accessToken}")
+            connection.setRequestProperty("Content-Type", contentType)
+            connection.setRequestProperty("x-upsert", "false")
+            connection.doOutput = true
+            connection.outputStream.use { it.write(imageBytes) }
+            if (connection.responseCode !in 200..299) {
+                throw IllegalStateException("Logo upload was rejected. Check file and administrator permissions.")
+            }
+            return objectName
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    /** Database RPC authorizes writes; caller role and business ID are never trusted. */
+    fun saveBranding(session: Session, brand: BusinessBranding) {
+        val payload = JSONObject()
+            .put("target_business_id", brand.businessId)
+            .put("new_display_name", brand.displayName)
+            .put("new_primary_color_hex", brand.primaryColorHex)
+            .put("new_secondary_color_hex", brand.secondaryColorHex)
+            .put("new_accent_color_hex", brand.accentColorHex)
+            .put("new_background_color_hex", brand.backgroundColorHex)
+            .put("new_text_color_hex", brand.textColorHex)
+            .put("new_logo_storage_path", brand.logoStoragePath ?: JSONObject.NULL)
+        request("POST", "/rest/v1/rpc/save_business_branding", session, payload)
     }
 
     fun projects(session: Session, businessId: String? = null): List<ProjectSummary> {
@@ -154,7 +217,11 @@ class SocytoApi {
                     else "Service request failed (HTTP $status).")
             }
             val text = connection.inputStream.bufferedReader().use { it.readText() }
-            return if (text.startsWith("[")) JSONObject().put("_rows", text) else JSONObject(text)
+            return when {
+                text.isBlank() -> JSONObject()
+                text.startsWith("[") -> JSONObject().put("_rows", text)
+                else -> JSONObject(text)
+            }
         } finally {
             connection.disconnect()
         }
