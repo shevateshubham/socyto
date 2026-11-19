@@ -6,135 +6,183 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.socyto.app.domain.Requirement
-import com.socyto.app.domain.RequirementType
-import com.socyto.app.domain.calculateProgress
+import com.socyto.app.data.*
 
-private val olive = Color(0xFF2E4A2B)
-private data class LocalProject(val name: String, val client: String, val requirements: List<Requirement>)
+private val deepOlive = Color(0xFF2E4A2B)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme(primary = olive)) {
-                SocytoApp()
-            }
+            MaterialTheme(colorScheme = lightColorScheme(primary = deepOlive)) { SocytoApp() }
         }
     }
 }
 
 @Composable
 private fun SocytoApp() {
-    val projects = remember { mutableStateListOf<LocalProject>() }
-    var creating by remember { mutableStateOf(false) }
-    var selected by remember { mutableStateOf<LocalProject?>(null) }
+    val api = remember { SocytoApi() }
+    var session by remember { mutableStateOf<Session?>(null) }
+    var scope by remember { mutableStateOf<AccountScope?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf("") }
+    var projects by remember { mutableStateOf(emptyList<ProjectSummary>()) }
+    var businesses by remember { mutableStateOf(emptyList<BusinessSummary>()) }
+    var selectedProject by remember { mutableStateOf<ProjectSummary?>(null) }
+    var updates by remember { mutableStateOf(emptyList<PublishedUpdate>()) }
+
+    fun loadWorkspace(authenticated: Session, accountScope: AccountScope) {
+        busy = true
+        api.async({
+            val businessList = if (accountScope is AccountScope.PlatformAdmin) api.businesses(authenticated) else emptyList()
+            val projectList = when (accountScope) {
+                AccountScope.PlatformAdmin -> emptyList()
+                is AccountScope.BusinessAdmin -> api.projects(authenticated, accountScope.business.id)
+                AccountScope.Client -> api.projects(authenticated)
+            }
+            businessList to projectList
+        }) { result ->
+            busy = false
+            result.onSuccess { (b, p) -> businesses = b; projects = p }
+                .onFailure { message = it.message ?: "Failed to open workspace." }
+        }
+    }
+
+    fun loadProject(authenticated: Session, project: ProjectSummary) {
+        selectedProject = project
+        busy = true
+        updates = emptyList()
+        api.async({ api.publications(authenticated, project) }) { result ->
+            busy = false
+            result.onSuccess { updates = it }.onFailure { message = it.message ?: "Unable to read published updates." }
+        }
+    }
+
     Scaffold(
-        topBar = { Surface(color = olive) {
-            Text("SOCYTO  ·  DESIGN · EXECUTE · DELIVER",
-                color = Color.White, modifier = Modifier.fillMaxWidth().padding(20.dp),
-                fontWeight = FontWeight.Bold)
-        } }
+        topBar = {
+            Surface(color = deepOlive) {
+                Text("SOCYTO  ·  DESIGN · EXECUTE · DELIVER",
+                    color = Color.White, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth().padding(20.dp))
+            }
+        }
     ) { inset ->
-        Column(Modifier.fillMaxSize().padding(inset).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            when {
-                creating -> CreateProject(
-                    onBack = { creating = false },
-                    onSave = { project -> projects.add(project); creating = false }
-                )
-                selected != null -> {
-                    Text(selected!!.name, style = MaterialTheme.typography.headlineMedium)
-                    Text("Client: ${selected!!.client}")
-                    val progress = calculateProgress(selected!!.requirements)
-                    Text("Initial progress: ${progress?.let { "%.1f%%".format(it) } ?: "Not yet defined"}")
-                    Text("Project details are local previews; cloud saving and publishing are not yet enabled.")
-                    Button(onClick = { selected = null }) { Text("Back to projects") }
+        Column(
+            Modifier.fillMaxSize().padding(inset).verticalScroll(rememberScrollState()).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (session == null) {
+                Text("Welcome to SOCYTO", style = MaterialTheme.typography.headlineMedium)
+                Text("Secure business and project management")
+                if (!api.isConfigured) {
+                    Text("Cloud backend is not configured for this build. No business data is stored locally.",
+                        color = MaterialTheme.colorScheme.error)
+                } else {
+                    LoginForm(enabled = !busy, onLogin = { email, password ->
+                        busy = true
+                        message = ""
+                        api.async({
+                            val authenticated = api.signIn(email.trim(), password)
+                            authenticated to api.accountScope(authenticated)
+                        }) { result ->
+                            busy = false
+                            result.onSuccess { (authenticated, accountScope) ->
+                                session = authenticated
+                                scope = accountScope
+                                loadWorkspace(authenticated, accountScope)
+                            }.onFailure { message = it.message ?: "Sign-in failed." }
+                        }
+                    })
                 }
-                else -> {
-                    Text("Projects", style = MaterialTheme.typography.headlineMedium)
-                    Text("Admin workspace · Local prototype")
-                    Button(onClick = { creating = true }) { Text("+ Create project") }
-                    if (projects.isEmpty()) {
-                        Text("No projects yet. Create your first project to begin.")
-                    } else {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(projects) { project ->
-                                OutlinedButton(onClick = { selected = project }, modifier = Modifier.fillMaxWidth()) {
-                                    Text("${project.name} · ${project.client}")
-                                }
+            } else {
+                Text(when (val role = scope) {
+                    AccountScope.PlatformAdmin -> "Super Admin"
+                    is AccountScope.BusinessAdmin -> role.business.name
+                    AccountScope.Client -> "My projects"
+                    null -> "Loading account"
+                }, style = MaterialTheme.typography.headlineMedium)
+                OutlinedButton(onClick = {
+                    session = null
+                    scope = null
+                    projects = emptyList()
+                    businesses = emptyList()
+                    selectedProject = null
+                    updates = emptyList()
+                    message = ""
+                }) { Text("Sign out") }
+                val authenticated = session!!
+                if (scope == AccountScope.PlatformAdmin) {
+                    Text("Subscribed businesses", fontWeight = FontWeight.SemiBold)
+                    if (businesses.isEmpty() && !busy) Text("No businesses provisioned.")
+                    businesses.forEach { business ->
+                        OutlinedButton(onClick = {
+                            busy = true
+                            api.async({ api.projects(authenticated, business.id) }) { result ->
+                                busy = false
+                                result.onSuccess { projects = it; selectedProject = null }
+                                    .onFailure { message = it.message ?: "Unable to load projects." }
                             }
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text(business.name)
                         }
                     }
                 }
+                if (selectedProject == null) {
+                    Text("Projects", fontWeight = FontWeight.SemiBold)
+                    if (projects.isEmpty() && !busy) Text("No accessible projects.")
+                    projects.forEach { project ->
+                        OutlinedButton(
+                            onClick = { loadProject(authenticated, project) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(project.name) }
+                    }
+                    if (scope is AccountScope.BusinessAdmin) {
+                        Text("Project editing, material receipts and publication controls will be enabled after secure backend write workflows are connected.",
+                            color = MaterialTheme.colorScheme.secondary)
+                    }
+                } else {
+                    Text(selectedProject!!.name, style = MaterialTheme.typography.titleLarge)
+                    Text("Published project updates", fontWeight = FontWeight.SemiBold)
+                    if (updates.isEmpty() && !busy) Text("No updates have been published.")
+                    updates.forEach { update ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(update.progress, fontWeight = FontWeight.Bold)
+                                Text(update.note)
+                                Text(update.publishedAt, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                    OutlinedButton(onClick = { selectedProject = null; updates = emptyList() }) {
+                        Text("Back to projects")
+                    }
+                }
             }
+            if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (message.isNotEmpty()) Text(message, color = MaterialTheme.colorScheme.error)
         }
     }
 }
 
 @Composable
-private fun CreateProject(onBack: () -> Unit, onSave: (LocalProject) -> Unit) {
-    var name by remember { mutableStateOf("") }
-    var client by remember { mutableStateOf("") }
-    var requirementName by remember { mutableStateOf("") }
-    var quantityBased by remember { mutableStateOf(false) }
-    var quantityText by remember { mutableStateOf("1") }
-    var effort by remember { mutableIntStateOf(2) }
-    val requirements = remember { mutableStateListOf<Requirement>() }
-    var error by remember { mutableStateOf("") }
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("New project", style = MaterialTheme.typography.headlineMedium)
-        OutlinedTextField(name, { name = it }, label = { Text("Project name") }, singleLine = true)
-        OutlinedTextField(client, { client = it }, label = { Text("Client name") }, singleLine = true)
-        HorizontalDivider()
-        Text("Custom work requirements", fontWeight = FontWeight.Bold)
-        OutlinedTextField(requirementName, { requirementName = it }, label = { Text("Work requirement") }, singleLine = true)
-        Row {
-            Checkbox(checked = quantityBased, onCheckedChange = { quantityBased = it })
-            Text("Track by quantity", modifier = Modifier.padding(top = 12.dp))
-        }
-        if (quantityBased) {
-            OutlinedTextField(quantityText, { quantityText = it },
-                label = { Text("Required quantity") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true)
-        }
-        Text("Effort: ${when (effort) { 1 -> "Small"; 2 -> "Medium"; else -> "Large" }}")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            (1..3).forEach { value ->
-                FilterChip(selected = effort == value, onClick = { effort = value }, label = { Text("$value") })
-            }
-        }
-        OutlinedButton(onClick = {
-            val quantity = quantityText.toDoubleOrNull()
-            if (requirementName.isBlank() || (quantityBased && (quantity == null || !quantity.isFinite() || quantity <= 0))) {
-                error = "Enter a requirement and valid positive quantity."
-            } else {
-                requirements.add(Requirement(
-                    title = requirementName.trim(),
-                    type = if (quantityBased) RequirementType.QUANTITY else RequirementType.CHECKLIST,
-                    effort = effort,
-                    requiredQuantity = if (quantityBased) quantity!! else 1.0
-                ))
-                requirementName = ""
-                error = ""
-            }
-        }) { Text("Add requirement") }
-        Text("${requirements.size} requirements added")
-        if (error.isNotBlank()) Text(error, color = MaterialTheme.colorScheme.error)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = onBack) { Text("Cancel") }
-            Button(enabled = name.isNotBlank() && client.isNotBlank() && requirements.isNotEmpty(),
-                onClick = { onSave(LocalProject(name.trim(), client.trim(), requirements.toList())) }) {
-                Text("Save project")
-            }
-        }
-    }
+private fun LoginForm(enabled: Boolean, onLogin: (String, String) -> Unit) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    OutlinedTextField(email, { email = it }, label = { Text("Email") },
+        singleLine = true, modifier = Modifier.fillMaxWidth())
+    OutlinedTextField(password, { password = it }, label = { Text("Password") },
+        singleLine = true, visualTransformation = PasswordVisualTransformation(),
+        modifier = Modifier.fillMaxWidth())
+    Button(onClick = { onLogin(email, password) },
+        enabled = enabled && email.isNotBlank() && password.isNotBlank(),
+        modifier = Modifier.fillMaxWidth()) { Text("Sign in") }
 }
