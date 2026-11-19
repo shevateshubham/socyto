@@ -11,8 +11,8 @@ android {
         applicationId = "com.socyto.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         // Publishable client keys are not secrets; never use a service-role key in an APK.
         val backendUrl = providers.environmentVariable("SOCYTO_SUPABASE_URL").orElse("").get()
         val publishableKey = providers.environmentVariable("SOCYTO_SUPABASE_PUBLISHABLE_KEY").orElse("").get()
@@ -31,4 +31,5 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
+    implementation("io.coil-kt:coil-compose:2.7.0")
 }
