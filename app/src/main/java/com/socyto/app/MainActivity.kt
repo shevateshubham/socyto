@@ -154,7 +154,16 @@ private fun SocytoApp() {
                     Text("Cloud backend is not configured for this build. No business data is stored locally.",
                         color = MaterialTheme.colorScheme.error)
                 } else {
-                    LoginForm(enabled = !busy, onLogin = { email, password ->
+                    LoginForm(enabled = !busy, onSignUp = { email, password ->
+                        busy = true
+                        message = ""
+                        api.async({ api.signUp(email, password) }) { result ->
+                            busy = false
+                            result.onSuccess {
+                                message = "Verify the email sent to you before signing in. An administrator must assign access."
+                            }.onFailure { message = it.message ?: "Sign-up failed." }
+                        }
+                    }, onLogin = { email, password ->
                         busy = true
                         message = ""
                         api.async({
@@ -230,6 +239,11 @@ private fun SocytoApp() {
                             Text(business.name)
                         }
                     }
+                    RegisterBusinessForm(
+                        session = authenticated,
+                        api = api,
+                        onRegistered = { loadWorkspace(authenticated, AccountScope.PlatformAdmin) }
+                    )
                     if (selectedBusiness != null) {
                         OutlinedButton(
                             onClick = { editingBranding = true },
@@ -293,7 +307,7 @@ private fun SocytoApp() {
 }
 
 @Composable
-private fun LoginForm(enabled: Boolean, onLogin: (String, String) -> Unit) {
+private fun LoginForm(enabled: Boolean, onLogin: (String, String) -> Unit, onSignUp: (String, String) -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     OutlinedTextField(email, { email = it }, label = { Text("Email") },
@@ -304,4 +318,10 @@ private fun LoginForm(enabled: Boolean, onLogin: (String, String) -> Unit) {
     Button(onClick = { onLogin(email, password) },
         enabled = enabled && email.isNotBlank() && password.isNotBlank(),
         modifier = Modifier.fillMaxWidth()) { Text("Sign in") }
+    OutlinedButton(
+        onClick = { onSignUp(email.trim(), password) },
+        enabled = enabled && email.contains("@") && password.length >= 8,
+        modifier = Modifier.fillMaxWidth()
+    ) { Text("Create account") }
+    Text("New accounts have no administrative privileges until approved.")
 }
