@@ -52,6 +52,34 @@ class SocytoApi {
         }
     }
 
+    /** Signup grants no business privileges until verified role provisioning. */
+    fun signUp(email: String, password: String) {
+        require(email.contains("@") && password.length >= 8) {
+            "Enter a valid email and a password with at least 8 characters."
+        }
+        request("POST", "/auth/v1/signup", null,
+            JSONObject().put("email", email.trim()).put("password", password))
+    }
+
+    /** Only a platform administrator can register a new firm. */
+    fun registerFirm(
+        session: Session, businessName: String, administratorEmail: String, businessType: String
+    ) {
+        require(businessName.trim().length in 2..120)
+        require(administratorEmail.contains("@"))
+        request("POST", "/rest/v1/rpc/register_business_for_verified_email", session,
+            JSONObject().put("new_business_name", businessName.trim())
+                .put("administrator_email", administratorEmail.trim())
+                .put("new_business_type", businessType))
+    }
+
+    /** Only a Business Admin can link their own client to a verified login. */
+    fun linkClientLogin(session: Session, businessId: String, clientId: String) {
+        request("POST", "/rest/v1/rpc/link_verified_client_login", session,
+            JSONObject().put("target_business_id", businessId)
+                .put("target_client_id", clientId))
+    }
+
     fun signIn(email: String, password: String): Session {
         val response = request("POST", "/auth/v1/token?grant_type=password", null,
             JSONObject().put("email", email).put("password", password))
