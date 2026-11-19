@@ -69,6 +69,33 @@ class SocytoApi {
         }
     }
 
+    /** RLS allows only the signed-in firm, its assigned clients, or the platform admin. */
+    fun branding(session: Session, businessId: String): BusinessBranding {
+        val rows = getRows(
+            "business_branding",
+            "business_id,display_name,logo_url,primary_color_hex,secondary_color_hex,accent_color_hex,background_color_hex,text_color_hex",
+            "business_id=eq.${encode(businessId)}",
+            session
+        )
+        if (rows.length() == 0) {
+            // Use the actual business name for admins; clients receive a neutral fallback.
+            return BusinessBranding(businessId, "Project workspace")
+        }
+        val row = rows.getJSONObject(0)
+        fun stringOrNull(name: String): String? =
+            if (row.isNull(name)) null else row.optString(name)
+        return BusinessBranding(
+            businessId = businessId,
+            displayName = BrandValidator.displayNameOrFallback(stringOrNull("display_name"), "Project workspace"),
+            logoUrl = BrandValidator.logoUrlOrNull(stringOrNull("logo_url"), BuildConfig.SUPABASE_URL),
+            primaryColorHex = BrandValidator.colorOrDefault(stringOrNull("primary_color_hex"), "#2E4A2B"),
+            secondaryColorHex = BrandValidator.colorOrDefault(stringOrNull("secondary_color_hex"), "#6B8E49"),
+            accentColorHex = BrandValidator.colorOrDefault(stringOrNull("accent_color_hex"), "#D4AF7C"),
+            backgroundColorHex = BrandValidator.colorOrDefault(stringOrNull("background_color_hex"), "#F7F5F0"),
+            textColorHex = BrandValidator.colorOrDefault(stringOrNull("text_color_hex"), "#1F1F1F")
+        )
+    }
+
     fun projects(session: Session, businessId: String? = null): List<ProjectSummary> {
         val filter = if (businessId != null) "business_id=eq.${encode(businessId)}&order=created_at.desc" else "order=created_at.desc"
         val rows = getRows("projects", "project_id,business_id,project_name", filter, session)
