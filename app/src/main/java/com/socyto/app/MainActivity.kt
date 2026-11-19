@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -18,12 +20,15 @@ import androidx.compose.ui.unit.dp
 import com.socyto.app.data.*
 
 private val deepOlive = Color(0xFF2E4A2B)
+private fun hexColor(value: String, fallback: Color): Color =
+    runCatching { Color(android.graphics.Color.parseColor(value)) }.getOrDefault(fallback)
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme(primary = deepOlive)) { SocytoApp() }
+            SocytoApp()
         }
     }
 }
@@ -32,6 +37,16 @@ class MainActivity : ComponentActivity() {
 private fun SocytoApp() {
     val api = remember { SocytoApi() }
     var session by remember { mutableStateOf<Session?>(null) }
+    var branding by remember { mutableStateOf<BusinessBranding?>(null) }
+    val brandPrimary = hexColor(branding?.primaryColorHex ?: "#2E4A2B", deepOlive)
+    val brandBackground = hexColor(branding?.backgroundColorHex ?: "#F7F5F0", Color.White)
+    val brandText = hexColor(branding?.textColorHex ?: "#1F1F1F", Color.Black)
+    val brandAccent = hexColor(branding?.accentColorHex ?: "#D4AF7C", Color(0xFFD4AF7C))
+    val brandSecondary = hexColor(branding?.secondaryColorHex ?: "#6B8E49", Color(0xFF6B8E49))
+    val onPrimary = if (android.graphics.Color.luminance(
+        android.graphics.Color.parseColor(branding?.primaryColorHex ?: "#2E4A2B")
+    ) > 0.4f) Color.Black else Color.White
+
     var scope by remember { mutableStateOf<AccountScope?>(null) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
@@ -49,10 +64,19 @@ private fun SocytoApp() {
                 is AccountScope.BusinessAdmin -> api.projects(authenticated, accountScope.business.id)
                 AccountScope.Client -> api.projects(authenticated)
             }
-            businessList to projectList
+            val businessId = when (accountScope) {
+                is AccountScope.BusinessAdmin -> accountScope.business.id
+                AccountScope.Client -> projectList.firstOrNull()?.businessId
+                AccountScope.PlatformAdmin -> null
+            }
+            Triple(businessList, projectList, businessId?.let { api.branding(authenticated, it) })
         }) { result ->
             busy = false
-            result.onSuccess { (b, p) -> businesses = b; projects = p }
+            result.onSuccess { (b, p, tenantBrand) ->
+                businesses = b
+                projects = p
+                branding = tenantBrand
+            }
                 .onFailure { message = it.message ?: "Failed to open workspace." }
         }
     }
@@ -67,12 +91,48 @@ private fun SocytoApp() {
         }
     }
 
+    MaterialTheme(
+        colorScheme = lightColorScheme(
+            primary = brandPrimary,
+            onPrimary = onPrimary,
+            secondary = brandSecondary,
+            tertiary = brandAccent,
+            background = brandBackground,
+            onBackground = brandText,
+            surface = brandBackground,
+            onSurface = brandText
+        )
+    ) {
     Scaffold(
+        containerColor = brandBackground,
         topBar = {
-            Surface(color = deepOlive) {
-                Text("SOCYTO  ·  DESIGN · EXECUTE · DELIVER",
-                    color = Color.White, fontWeight = FontWeight.Bold,
-                    modifier = Modifier.fillMaxWidth().padding(20.dp))
+            Surface(color = brandPrimary) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    val brandLogo = branding?.logoUrl
+                    if (brandLogo != null) {
+                        AsyncImage(
+                            model = brandLogo,
+                            contentDescription = "Business logo",
+                            modifier = Modifier.size(42.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                    Column {
+                        Text(
+                            branding?.displayName ?: "Project Workspace",
+                            color = onPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "DESIGN · EXECUTE · DELIVER",
+                            color = onPrimary,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
             }
         }
     ) { inset ->
@@ -81,7 +141,7 @@ private fun SocytoApp() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (session == null) {
-                Text("Welcome to SOCYTO", style = MaterialTheme.typography.headlineMedium)
+                Text("Welcome", style = MaterialTheme.typography.headlineMedium)
                 Text("Secure business and project management")
                 if (!api.isConfigured) {
                     Text("Cloud backend is not configured for this build. No business data is stored locally.",
@@ -112,6 +172,7 @@ private fun SocytoApp() {
                 }, style = MaterialTheme.typography.headlineMedium)
                 OutlinedButton(onClick = {
                     session = null
+                    branding = null
                     scope = null
                     projects = emptyList()
                     businesses = emptyList()
@@ -126,9 +187,15 @@ private fun SocytoApp() {
                     businesses.forEach { business ->
                         OutlinedButton(onClick = {
                             busy = true
-                            api.async({ api.projects(authenticated, business.id) }) { result ->
+                            api.async({
+                                api.projects(authenticated, business.id) to api.branding(authenticated, business.id)
+                            }) { result ->
                                 busy = false
-                                result.onSuccess { projects = it; selectedProject = null }
+                                result.onSuccess { (p, tenantBrand) ->
+                                    projects = p
+                                    branding = tenantBrand
+                                    selectedProject = null
+                                }
                                     .onFailure { message = it.message ?: "Unable to load projects." }
                             }
                         }, modifier = Modifier.fillMaxWidth()) {
@@ -170,6 +237,7 @@ private fun SocytoApp() {
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (message.isNotEmpty()) Text(message, color = MaterialTheme.colorScheme.error)
         }
+    }
     }
 }
 
