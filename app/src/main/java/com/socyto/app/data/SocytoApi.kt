@@ -15,6 +15,16 @@ data class Session(val accessToken: String, val userId: String)
 data class BusinessSummary(val id: String, val name: String)
 data class ProjectSummary(val id: String, val businessId: String, val name: String)
 data class ClientSummary(val id: String, val name: String)
+data class RequirementSummary(
+    val id: String,
+    val title: String,
+    val type: String,
+    val effortScore: Int,
+    val completed: Boolean,
+    val requiredQuantity: Double?,
+    val completedQuantity: Double,
+    val unit: String?
+)
 data class MaterialReceiptSummary(val id: String, val materialName: String, val quantity: Double, val unit: String, val amount: Double)
 data class PublishedUpdate(val progress: String, val note: String, val publishedAt: String)
 
@@ -215,6 +225,51 @@ class SocytoApi {
             .put("requirement_name", title.trim()).put("tracking_type", "quantity")
             .put("effort_score", effort).put("required_quantity", requiredQuantity)
             .put("unit_name", unit.trim()))
+    }
+
+
+    fun requirements(session: Session, project: ProjectSummary): List<RequirementSummary> {
+        val rows = getRows("project_requirements",
+            "requirement_id,requirement_name,tracking_type,effort_score,is_completed,required_quantity,completed_quantity,unit_name",
+            "business_id=eq.${encode(project.businessId)}&project_id=eq.${encode(project.id)}&order=display_order.asc",
+            session)
+        return (0 until rows.length()).map { i ->
+            rows.getJSONObject(i).let { item ->
+                RequirementSummary(
+                    id = item.getString("requirement_id"),
+                    title = item.getString("requirement_name"),
+                    type = item.getString("tracking_type"),
+                    effortScore = item.getInt("effort_score"),
+                    completed = item.getBoolean("is_completed"),
+                    requiredQuantity = if (item.isNull("required_quantity")) null else item.getDouble("required_quantity"),
+                    completedQuantity = item.getDouble("completed_quantity"),
+                    unit = if (item.isNull("unit_name")) null else item.getString("unit_name")
+                )
+            }
+        }
+    }
+
+    fun updateRequirement(
+        session: Session, project: ProjectSummary, requirement: RequirementSummary,
+        completed: Boolean, completedQuantity: Double
+    ) {
+        require(completedQuantity.isFinite() && completedQuantity >= 0)
+        require(requirement.type == "checklist" || requirement.type == "quantity")
+        val body = JSONObject()
+        if (requirement.type == "checklist") body.put("is_completed", completed)
+        else body.put("completed_quantity", completedQuantity)
+        request("PATCH",
+            "/rest/v1/project_requirements?business_id=eq.${encode(project.businessId)}" +
+            "&project_id=eq.${encode(project.id)}&requirement_id=eq.${encode(requirement.id)}",
+            session, body)
+    }
+
+    fun publishProgress(session: Session, project: ProjectSummary, note: String) {
+        require(note.length <= 4000)
+        request("POST", "/rest/v1/rpc/publish_project_progress", session,
+            JSONObject().put("target_business_id", project.businessId)
+                .put("target_project_id", project.id)
+                .put("publication_note", note.trim().takeIf { it.isNotBlank() } ?: JSONObject.NULL))
     }
 
     fun materialReceipts(session: Session, project: ProjectSummary): List<MaterialReceiptSummary> {
