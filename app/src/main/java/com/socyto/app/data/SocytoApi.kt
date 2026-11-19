@@ -11,7 +11,12 @@ import java.net.URLEncoder
 import java.util.concurrent.Executors
 
 /** A single Supabase session; never stored on disk in this milestone. */
-data class Session(val accessToken: String, val userId: String)
+data class Session(
+    var accessToken: String,
+    val userId: String,
+    var refreshToken: String,
+    var expiresAtEpochMs: Long
+)
 data class BusinessSummary(val id: String, val name: String)
 data class ProjectSummary(val id: String, val businessId: String, val name: String)
 data class ClientSummary(val id: String, val name: String)
@@ -50,8 +55,13 @@ class SocytoApi {
     fun signIn(email: String, password: String): Session {
         val response = request("POST", "/auth/v1/token?grant_type=password", null,
             JSONObject().put("email", email).put("password", password))
-        return Session(response.getString("access_token"),
-            response.getJSONObject("user").getString("id"))
+        return Session(
+            accessToken = response.getString("access_token"),
+            userId = response.getJSONObject("user").getString("id"),
+            refreshToken = response.getString("refresh_token"),
+            expiresAtEpochMs = System.currentTimeMillis() +
+                response.optLong("expires_in", 3600L) * 1000L
+        )
     }
 
     /** Role is determined from authenticated database queries; the app never trusts user-supplied role text. */
@@ -342,9 +352,24 @@ class SocytoApi {
         return JSONArray(request("GET", path, session).getString("_rows"))
     }
 
+    private fun refreshSession(session: Session) {
+        check(session.refreshToken.isNotBlank()) { "Session expired. Please sign in again." }
+        val response = request(
+            "POST", "/auth/v1/token?grant_type=refresh_token", null,
+            JSONObject().put("refresh_token", session.refreshToken)
+        )
+        session.accessToken = response.getString("access_token")
+        session.refreshToken = response.getString("refresh_token")
+        session.expiresAtEpochMs = System.currentTimeMillis() +
+            response.optLong("expires_in", 3600L) * 1000L
+    }
+
     private fun request(method: String, path: String, session: Session?,
                         payload: JSONObject? = null, returnRecords: Boolean = false): JSONObject {
         check(isConfigured) { "Configure SOCYTO backend before signing in." }
+        if (session != null && System.currentTimeMillis() + 60000 >= session.expiresAtEpochMs) {
+            refreshSession(session)
+        }
         val base = BuildConfig.SUPABASE_URL.trimEnd('/')
         val url = URL(base + path)
         check(url.protocol == "https" && url.host == URL(base).host) { "Backend must use HTTPS." }
