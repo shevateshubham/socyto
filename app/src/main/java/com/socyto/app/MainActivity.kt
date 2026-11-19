@@ -236,7 +236,29 @@ private fun SocytoApp() {
                                     .onFailure { message = it.message ?: "Unable to load projects." }
                             }
                         }, modifier = Modifier.fillMaxWidth()) {
-                            Text(business.name)
+                            Text("${business.name} · ${business.status}")
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (business.status != "active") {
+                                OutlinedButton(onClick = {
+                                    busy = true
+                                    api.async({ api.setBusinessStatus(authenticated, business.id, "active") }) { result ->
+                                        busy = false
+                                        result.onSuccess { loadWorkspace(authenticated, AccountScope.PlatformAdmin) }
+                                            .onFailure { message = it.message ?: "Could not activate business." }
+                                    }
+                                }, enabled = !busy) { Text("Activate") }
+                            }
+                            if (business.status == "active") {
+                                OutlinedButton(onClick = {
+                                    busy = true
+                                    api.async({ api.setBusinessStatus(authenticated, business.id, "suspended") }) { result ->
+                                        busy = false
+                                        result.onSuccess { loadWorkspace(authenticated, AccountScope.PlatformAdmin) }
+                                            .onFailure { message = it.message ?: "Could not suspend business." }
+                                    }
+                                }, enabled = !busy) { Text("Suspend") }
+                            }
                         }
                     }
                     RegisterBusinessForm(
