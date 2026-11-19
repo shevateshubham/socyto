@@ -36,6 +36,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun SocytoApp() {
     val api = remember { SocytoApi() }
+    var demoMode by remember { mutableStateOf(false) }
     var session by remember { mutableStateOf<Session?>(null) }
     var branding by remember { mutableStateOf<BusinessBranding?>(null) }
     val brandPrimary = hexColor(branding?.primaryColorHex ?: "#2E4A2B", deepOlive)
@@ -98,6 +99,11 @@ private fun SocytoApp() {
         }
     }
 
+    if (BuildConfig.DEBUG && demoMode) {
+        DemoPreview(onExit = { demoMode = false })
+        return
+    }
+
     MaterialTheme(
         colorScheme = lightColorScheme(
             primary = brandPrimary,
@@ -150,6 +156,12 @@ private fun SocytoApp() {
             if (session == null) {
                 Text("Welcome", style = MaterialTheme.typography.headlineMedium)
                 Text("Secure business and project management")
+                if (BuildConfig.DEBUG) {
+                    Button(onClick = { demoMode = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Explore offline UI demo")
+                    }
+                    Text("Demo mode contains fictional data and cannot edit cloud records.")
+                }
                 if (!api.isConfigured) {
                     Text("Cloud backend is not configured for this build. No business data is stored locally.",
                         color = MaterialTheme.colorScheme.error)
