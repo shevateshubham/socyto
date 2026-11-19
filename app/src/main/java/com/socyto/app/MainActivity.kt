@@ -238,6 +238,18 @@ private fun SocytoApp() {
                         ) { Text("Edit ${selectedBusiness!!.name} branding") }
                     }
                 }
+                if (scope is AccountScope.BusinessAdmin) {
+                    BusinessManagementPanel(
+                        business = (scope as AccountScope.BusinessAdmin).business,
+                        session = authenticated,
+                        api = api,
+                        onProjectCreated = { created ->
+                            projects = listOf(created) + projects
+                            selectedProject = created
+                            message = ""
+                        }
+                    )
+                }
                 if (selectedProject == null) {
                     Text("Projects", fontWeight = FontWeight.SemiBold)
                     if (projects.isEmpty() && !busy) Text("No accessible projects.")
@@ -247,12 +259,12 @@ private fun SocytoApp() {
                             modifier = Modifier.fillMaxWidth()
                         ) { Text(project.name) }
                     }
-                    if (scope is AccountScope.BusinessAdmin) {
-                        Text("Project editing, material receipts and publication controls will be enabled after secure backend write workflows are connected.",
-                            color = MaterialTheme.colorScheme.secondary)
-                    }
+
                 } else {
                     Text(selectedProject!!.name, style = MaterialTheme.typography.titleLarge)
+                    if (scope is AccountScope.BusinessAdmin) {
+                        ProjectSiteOperations(selectedProject!!, authenticated, api)
+                    }
                     Text("Published project updates", fontWeight = FontWeight.SemiBold)
                     if (updates.isEmpty() && !busy) Text("No updates have been published.")
                     updates.forEach { update ->
