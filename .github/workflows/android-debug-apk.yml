@@ -25,6 +25,9 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Test and build debug APK
+        env:
+          SOCYTO_SUPABASE_URL: ${{ vars.SOCYTO_SUPABASE_URL }}
+          SOCYTO_SUPABASE_PUBLISHABLE_KEY: ${{ vars.SOCYTO_SUPABASE_PUBLISHABLE_KEY }}
         run: gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
         with:
