@@ -8,6 +8,7 @@ data class BusinessBranding(
     val businessId: String,
     val displayName: String,
     val logoUrl: String? = null,
+    val logoStoragePath: String? = null,
     val primaryColorHex: String = "#2E4A2B",
     val secondaryColorHex: String = "#6B8E49",
     val accentColorHex: String = "#D4AF7C",
