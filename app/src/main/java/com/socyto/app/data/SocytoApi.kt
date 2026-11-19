@@ -14,6 +14,8 @@ import java.util.concurrent.Executors
 data class Session(val accessToken: String, val userId: String)
 data class BusinessSummary(val id: String, val name: String)
 data class ProjectSummary(val id: String, val businessId: String, val name: String)
+data class ClientSummary(val id: String, val name: String)
+data class MaterialReceiptSummary(val id: String, val materialName: String, val quantity: Double, val unit: String, val amount: Double)
 data class PublishedUpdate(val progress: String, val note: String, val publishedAt: String)
 
 sealed class AccountScope {
@@ -159,6 +161,101 @@ class SocytoApi {
         request("POST", "/rest/v1/rpc/save_business_branding", session, payload)
     }
 
+
+    /** Authorized by business-scoped RLS. The UI never accepts a free-form business ID. */
+    fun clients(session: Session, businessId: String): List<ClientSummary> {
+        val rows = getRows("clients", "client_id,client_name",
+            "business_id=eq.${encode(businessId)}&order=client_name.asc", session)
+        return (0 until rows.length()).map { index ->
+            rows.getJSONObject(index).let { ClientSummary(it.getString("client_id"), it.getString("client_name")) }
+        }
+    }
+
+    fun createClient(session: Session, businessId: String, name: String, email: String): ClientSummary {
+        require(ProjectInputRules.validName(name) && ProjectInputRules.validEmail(email))
+        val body = JSONObject()
+            .put("business_id", businessId)
+            .put("client_name", name.trim())
+            .put("client_email", email.trim().takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+        val row = postRecord("clients", session, body)
+        return ClientSummary(row.getString("client_id"), row.getString("client_name"))
+    }
+
+    fun createProject(
+        session: Session, businessId: String, clientId: String, projectName: String,
+        projectType: String, location: String
+    ): ProjectSummary {
+        require(ProjectInputRules.validName(projectName))
+        val body = JSONObject().put("business_id", businessId)
+            .put("client_id", clientId)
+            .put("project_name", projectName.trim())
+            .put("project_type", projectType.trim().takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("site_location", location.trim().takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+        val row = postRecord("projects", session, body)
+        return ProjectSummary(row.getString("project_id"), row.getString("business_id"),
+            row.getString("project_name"))
+    }
+
+    fun addChecklistRequirement(session: Session, project: ProjectSummary, title: String, effort: Int) {
+        require(ProjectInputRules.validName(title) && effort in 1..3)
+        postRecord("project_requirements", session, JSONObject()
+            .put("business_id", project.businessId).put("project_id", project.id)
+            .put("requirement_name", title.trim()).put("tracking_type", "checklist")
+            .put("effort_score", effort))
+    }
+
+    fun addQuantityRequirement(
+        session: Session, project: ProjectSummary, title: String, effort: Int,
+        requiredQuantity: Double, unit: String
+    ) {
+        require(ProjectInputRules.validName(title) && effort in 1..3 &&
+            ProjectInputRules.validQuantity(requiredQuantity) && unit.isNotBlank())
+        postRecord("project_requirements", session, JSONObject()
+            .put("business_id", project.businessId).put("project_id", project.id)
+            .put("requirement_name", title.trim()).put("tracking_type", "quantity")
+            .put("effort_score", effort).put("required_quantity", requiredQuantity)
+            .put("unit_name", unit.trim()))
+    }
+
+    fun materialReceipts(session: Session, project: ProjectSummary): List<MaterialReceiptSummary> {
+        val rows = getRows("material_receipts",
+            "material_receipt_id,material_name,received_quantity,unit_name,total_amount",
+            "business_id=eq.${encode(project.businessId)}&project_id=eq.${encode(project.id)}&order=created_at.desc",
+            session)
+        return (0 until rows.length()).map { index ->
+            rows.getJSONObject(index).let {
+                MaterialReceiptSummary(it.getString("material_receipt_id"),
+                    it.getString("material_name"), it.getDouble("received_quantity"),
+                    it.getString("unit_name"), it.getDouble("total_amount"))
+            }
+        }
+    }
+
+    fun addMaterialReceipt(
+        session: Session, project: ProjectSummary, materialName: String,
+        quantity: Double, unit: String, rate: Double, supplier: String,
+        receivedDate: String
+    ) {
+        require(ProjectInputRules.validName(materialName) &&
+            ProjectInputRules.validQuantity(quantity) &&
+            ProjectInputRules.validRate(rate) && unit.isNotBlank())
+        require(Regex("^\\d{4}-\\d{2}-\\d{2}$").matches(receivedDate))
+        postRecord("material_receipts", session, JSONObject()
+            .put("business_id", project.businessId).put("project_id", project.id)
+            .put("material_name", materialName.trim())
+            .put("received_quantity", quantity).put("unit_name", unit.trim())
+            .put("unit_rate", rate)
+            .put("supplier_name", supplier.trim().takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("received_date", receivedDate))
+    }
+
+    private fun postRecord(table: String, session: Session, body: JSONObject): JSONObject {
+        val result = request("POST", "/rest/v1/$table", session, body, returnRecords = true)
+        val rows = JSONArray(result.getString("_rows"))
+        check(rows.length() == 1) { "Server did not return the saved record." }
+        return rows.getJSONObject(0)
+    }
+
     fun projects(session: Session, businessId: String? = null): List<ProjectSummary> {
         val filter = if (businessId != null) "business_id=eq.${encode(businessId)}&order=created_at.desc" else "order=created_at.desc"
         val rows = getRows("projects", "project_id,business_id,project_name", filter, session)
@@ -191,7 +288,7 @@ class SocytoApi {
     }
 
     private fun request(method: String, path: String, session: Session?,
-                        payload: JSONObject? = null): JSONObject {
+                        payload: JSONObject? = null, returnRecords: Boolean = false): JSONObject {
         check(isConfigured) { "Configure SOCYTO backend before signing in." }
         val base = BuildConfig.SUPABASE_URL.trimEnd('/')
         val url = URL(base + path)
@@ -204,6 +301,7 @@ class SocytoApi {
             connection.readTimeout = 12000
             connection.setRequestProperty("apikey", BuildConfig.SUPABASE_PUBLISHABLE_KEY)
             connection.setRequestProperty("Accept", "application/json")
+            if (returnRecords) connection.setRequestProperty("Prefer", "return=representation")
             if (session != null) connection.setRequestProperty("Authorization", "Bearer ${session.accessToken}")
             if (payload != null) {
                 connection.doOutput = true
