@@ -5,8 +5,6 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -59,7 +57,7 @@ fun BusinessBrandEditor(
     }
 
     Column(
-        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+        Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("Brand settings", style = MaterialTheme.typography.headlineMedium)
@@ -138,7 +136,7 @@ fun BusinessBrandEditor(
                     api.async({
                         val uploadedPath = if (selectedUri != null) {
                             val mime = context.contentResolver.getType(selectedUri)
-                                ?: error("Unsupported logo format.")
+                                ?: throw IllegalArgumentException("Unsupported logo format.")
                             val image = context.contentResolver.openInputStream(selectedUri)?.use { input ->
                                 val output = ByteArrayOutputStream()
                                 val buffer = ByteArray(8192)
@@ -153,7 +151,7 @@ fun BusinessBrandEditor(
                                     output.write(buffer, 0, count)
                                 }
                                 output.toByteArray()
-                            } ?: error("Unable to read logo image.")
+                            } ?: throw IllegalArgumentException("Unable to read logo image.")
                             api.uploadBusinessLogo(session, business.id, image, mime)
                         } else logoPath
                         val revised = BusinessBranding(
