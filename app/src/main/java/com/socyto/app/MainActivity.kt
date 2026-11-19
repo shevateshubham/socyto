@@ -252,7 +252,7 @@ private fun SocytoApp() {
                         ) { Text("Edit ${selectedBusiness!!.name} branding") }
                     }
                 }
-                if (scope is AccountScope.BusinessAdmin) {
+                if (scope is AccountScope.BusinessAdmin && selectedProject == null) {
                     BusinessManagementPanel(
                         business = (scope as AccountScope.BusinessAdmin).business,
                         session = authenticated,
