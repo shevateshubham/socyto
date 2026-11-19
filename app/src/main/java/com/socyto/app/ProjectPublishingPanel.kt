@@ -39,6 +39,7 @@ fun ProjectPublishingPanel(
     HorizontalDivider()
     Text("Work progress — private draft", style = MaterialTheme.typography.titleLarge)
     Text("Changes stay private until you explicitly publish them to the client.")
+    OutlinedButton(onClick = { reload() }, enabled = !loading) { Text("Refresh requirements") }
     if (requirements.isEmpty() && !loading) Text("No work requirements yet.")
     requirements.forEach { requirement ->
         Card(Modifier.fillMaxWidth()) {
