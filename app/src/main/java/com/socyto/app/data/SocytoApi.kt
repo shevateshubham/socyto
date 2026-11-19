@@ -17,7 +17,7 @@ data class Session(
     var refreshToken: String,
     var expiresAtEpochMs: Long
 )
-data class BusinessSummary(val id: String, val name: String)
+data class BusinessSummary(val id: String, val name: String, val status: String = "pending")
 data class ProjectSummary(val id: String, val businessId: String, val name: String)
 data class ClientSummary(val id: String, val name: String)
 data class RequirementSummary(
@@ -101,11 +101,11 @@ class SocytoApi {
             "user_id=eq.${encode(session.userId)}&member_role=eq.business_admin", session)
         if (memberships.length() > 0) {
             val businessId = memberships.getJSONObject(0).getString("business_id")
-            val rows = getRows("businesses", "business_id,business_name",
+            val rows = getRows("businesses", "business_id,business_name,account_status",
                 "business_id=eq.${encode(businessId)}", session)
             if (rows.length() > 0) {
                 val business = rows.getJSONObject(0)
-                return AccountScope.BusinessAdmin(BusinessSummary(businessId, business.getString("business_name")))
+                return AccountScope.BusinessAdmin(BusinessSummary(businessId, business.getString("business_name"), business.getString("account_status")))
             }
         }
         // Client access is still verified by project-specific RLS, never by assumed ownership.
@@ -113,10 +113,18 @@ class SocytoApi {
     }
 
     fun businesses(session: Session): List<BusinessSummary> {
-        val rows = getRows("businesses", "business_id,business_name", "order=business_name.asc", session)
+        val rows = getRows("businesses", "business_id,business_name,account_status", "order=business_name.asc", session)
         return (0 until rows.length()).map { i ->
-            rows.getJSONObject(i).let { BusinessSummary(it.getString("business_id"), it.getString("business_name")) }
+            rows.getJSONObject(i).let { BusinessSummary(it.getString("business_id"), it.getString("business_name"), it.getString("account_status")) }
         }
+    }
+
+    /** Only the Super Admin can change the account activation state. */
+    fun setBusinessStatus(session: Session, businessId: String, status: String) {
+        require(status == "active" || status == "suspended" || status == "pending")
+        request("POST", "/rest/v1/rpc/set_business_account_status", session,
+            JSONObject().put("target_business_id", businessId)
+                .put("new_status", status))
     }
 
     /** RLS allows only the signed-in firm, its assigned clients, or the platform admin. */
