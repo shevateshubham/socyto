@@ -52,6 +52,8 @@ private fun SocytoApp() {
     var message by remember { mutableStateOf("") }
     var projects by remember { mutableStateOf(emptyList<ProjectSummary>()) }
     var businesses by remember { mutableStateOf(emptyList<BusinessSummary>()) }
+    var selectedBusiness by remember { mutableStateOf<BusinessSummary?>(null) }
+    var editingBranding by remember { mutableStateOf(false) }
     var selectedProject by remember { mutableStateOf<ProjectSummary?>(null) }
     var updates by remember { mutableStateOf(emptyList<PublishedUpdate>()) }
 
@@ -181,11 +183,30 @@ private fun SocytoApp() {
                     scope = null
                     projects = emptyList()
                     businesses = emptyList()
+                    selectedBusiness = null
+                    editingBranding = false
                     selectedProject = null
                     updates = emptyList()
                     message = ""
                 }) { Text("Sign out") }
                 val authenticated = session!!
+                if (scope == AccountScope.PlatformAdmin && editingBranding && selectedBusiness != null) {
+                    val firm = selectedBusiness!!
+                    BusinessBrandEditor(
+                        business = firm,
+                        current = branding?.takeIf { it.businessId == firm.id }?.let {
+                            if (it.displayName == "Project workspace") it.copy(displayName = firm.name) else it
+                        } ?: BusinessBranding(firm.id, firm.name),
+                        session = authenticated,
+                        api = api,
+                        onSaved = { updated ->
+                            branding = updated
+                            editingBranding = false
+                            message = ""
+                        },
+                        onCancel = { editingBranding = false }
+                    )
+                } else {
                 if (scope == AccountScope.PlatformAdmin) {
                     Text("Subscribed businesses", fontWeight = FontWeight.SemiBold)
                     if (businesses.isEmpty() && !busy) Text("No businesses provisioned.")
@@ -197,6 +218,8 @@ private fun SocytoApp() {
                             }) { result ->
                                 busy = false
                                 result.onSuccess { (p, tenantBrand) ->
+                                    selectedBusiness = business
+                                    editingBranding = false
                                     projects = p
                                     branding = tenantBrand
                                     selectedProject = null
@@ -206,6 +229,13 @@ private fun SocytoApp() {
                         }, modifier = Modifier.fillMaxWidth()) {
                             Text(business.name)
                         }
+                    }
+                    if (selectedBusiness != null) {
+                        OutlinedButton(
+                            onClick = { editingBranding = true },
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Edit ${selectedBusiness!!.name} branding") }
                     }
                 }
                 if (selectedProject == null) {
@@ -237,6 +267,7 @@ private fun SocytoApp() {
                     OutlinedButton(onClick = { selectedProject = null; updates = emptyList() }) {
                         Text("Back to projects")
                     }
+                }
                 }
             }
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
