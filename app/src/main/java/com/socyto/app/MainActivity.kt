@@ -264,6 +264,9 @@ private fun SocytoApp() {
                     Text(selectedProject!!.name, style = MaterialTheme.typography.titleLarge)
                     if (scope is AccountScope.BusinessAdmin) {
                         ProjectSiteOperations(selectedProject!!, authenticated, api)
+                        ProjectPublishingPanel(authenticated, api, selectedProject!!) {
+                            loadProject(authenticated, selectedProject!!)
+                        }
                     }
                     Text("Published project updates", fontWeight = FontWeight.SemiBold)
                     if (updates.isEmpty() && !busy) Text("No updates have been published.")
