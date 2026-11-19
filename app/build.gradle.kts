@@ -33,3 +33,21 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("io.coil-kt:coil-compose:2.7.0")
 }
+
+ 
+// A production APK is never built without a real backend configuration.
+tasks.register("verifyProductionBackend") {
+    doLast {
+        val url = providers.environmentVariable("SOCYTO_SUPABASE_URL").orElse("").get()
+        val key = providers.environmentVariable("SOCYTO_SUPABASE_PUBLISHABLE_KEY").orElse("").get()
+        check(url.startsWith("https://") && key.isNotBlank()) {
+            "Release blocked: configure the real SOCYTO Supabase URL and publishable key."
+        }
+        check(!key.startsWith("sb_secret_") && !key.startsWith("service_role")) {
+            "Release blocked: privileged backend secrets must never be embedded in Android."
+        }
+    }
+}
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    dependsOn("verifyProductionBackend")
+}
