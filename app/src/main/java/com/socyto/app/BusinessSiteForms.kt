@@ -79,6 +79,15 @@ fun BusinessManagementPanel(
                 )
                 Text(client.name, modifier = Modifier.padding(top = 12.dp))
             }
+            OutlinedButton(enabled = !loading, onClick = {
+                loading = true
+                message = ""
+                api.async({ api.linkClientLogin(session, business.id, client.id) }) { result ->
+                    loading = false
+                    result.onSuccess { message = "Verified login linked for ${client.name}." }
+                        .onFailure { message = it.message ?: "Client login linking failed." }
+                }
+            }) { Text("Link verified login — ${client.name}") }
         }
         OutlinedTextField(
             projectName, { projectName = it }, label = { Text("Project name") },
