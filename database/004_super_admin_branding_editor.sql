@@ -18,7 +18,7 @@ on storage.objects for insert to authenticated
 with check (
   bucket_id = 'business-logos'
   and public.is_platform_administrator()
-  and name ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}\\.(png|jpg|webp)$'
+  and name ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}\.(png|jpg|webp)$'
   and exists (
     select 1 from public.businesses b
     where b.business_id::text = split_part(name,'/',1)
@@ -33,7 +33,7 @@ add constraint branding_logo_storage_path_valid
 check (
   logo_storage_path is null or
   (
-    logo_storage_path ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}\\.(png|jpg|webp)$'
+    logo_storage_path ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}\.(png|jpg|webp)$'
     and split_part(logo_storage_path,'/',1) = business_id::text
   )
 );
@@ -76,7 +76,7 @@ begin
   end if;
   if new_logo_storage_path is not null then
     if new_logo_storage_path !~
-       '^[0-9a-f-]{36}/[0-9a-f-]{36}\\.(png|jpg|webp)$'
+       '^[0-9a-f-]{36}/[0-9a-f-]{36}\.(png|jpg|webp)$'
        or split_part(new_logo_storage_path,'/',1) != target_business_id::text
        or not exists (
            select 1 from storage.objects
