@@ -17,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.socyto.app.data.*
@@ -118,15 +119,15 @@ private fun SocytoApp() {
         topBar = {
             Surface(color = brandPrimary) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val brandLogo = branding?.logoUrl
                     if (brandLogo != null) {
                         AsyncImage(
                             model = brandLogo,
                             contentDescription = "Business logo",
-                            modifier = Modifier.size(42.dp),
+                            modifier = Modifier.size(36.dp),
                             contentScale = ContentScale.Fit
                         )
                     }
@@ -134,12 +135,16 @@ private fun SocytoApp() {
                         Text(
                             branding?.displayName ?: "Project Workspace",
                             color = onPrimary,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             "DESIGN · EXECUTE · DELIVER",
                             color = onPrimary,
-                            style = MaterialTheme.typography.labelSmall
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
