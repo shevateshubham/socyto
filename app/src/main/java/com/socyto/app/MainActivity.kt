@@ -219,7 +219,7 @@ private fun SocytoApp() {
                         api.async({ api.signUp(email, password) }) { result ->
                             busy = false
                             result.onSuccess {
-                                message = "Verify the email sent to you before signing in. An administrator must assign access."
+                                message = "Confirmation email sent. Open the link once, then return to SOCYTO and sign in. If the browser shows localhost or Unable to connect afterward, your email may still be verified; try Sign in here. An administrator must assign your role."
                             }.onFailure { message = it.message ?: "Sign-up failed." }
                         }
                     }, onLogin = { email, password ->
