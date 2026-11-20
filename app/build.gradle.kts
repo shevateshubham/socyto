@@ -16,8 +16,8 @@ android {
         applicationId = "com.socyto.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.5.0"
+        versionCode = 6
+        versionName = "0.6.0"
         // Publishable client keys are not secrets; never use a service-role key in an APK.
         val backendUrl = socytoBackendUrl
         val publishableKey = socytoPublishableKey
