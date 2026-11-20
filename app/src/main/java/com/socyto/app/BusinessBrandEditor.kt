@@ -83,7 +83,7 @@ fun BusinessBrandEditor(
         if (suggestions.isNotEmpty()) {
             Text("Suggested colours from logo", fontWeight = FontWeight.Medium)
             Text("Select a suggestion to use it as the primary colour.")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 suggestions.forEach { proposed ->
                     FilterChip(
                         selected = primary == proposed,
