@@ -1,0 +1,77 @@
+name: SOCYTO Android display compatibility
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'app/src/**'
+      - 'app/build.gradle.kts'
+      - '.github/scripts/android-display-smoke.sh'
+      - '.github/workflows/android-display-compatibility.yml'
+jobs:
+  device-screen-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: compact
+            width: 320
+            height: 640
+            density: 320
+            font: '1.0'
+            orientation: portrait
+          - profile: standard
+            width: 1080
+            height: 2400
+            density: 420
+            font: '1.0'
+            orientation: portrait
+          - profile: compact-large-text
+            width: 360
+            height: 740
+            density: 320
+            font: '1.5'
+            orientation: portrait
+          - profile: tablet
+            width: 1600
+            height: 2560
+            density: 320
+            font: '1.0'
+            orientation: portrait
+          - profile: landscape
+            width: 960
+            height: 540
+            density: 320
+            font: '1.0'
+            orientation: landscape
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Enable hardware virtualization
+        run: |
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          cores: 2
+          ram-size: 2048M
+          disk-size: 4096M
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: |
+            gradle :app:verifyProductionBackend :app:assembleDebug --no-daemon
+            bash .github/scripts/android-display-smoke.sh "${{ matrix.profile }}" "${{ matrix.width }}" "${{ matrix.height }}" "${{ matrix.density }}" "${{ matrix.font }}" "${{ matrix.orientation }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: socyto-ui-${{ matrix.profile }}
+          path: android-ui-evidence/${{ matrix.profile }}/
+          if-no-files-found: warn
