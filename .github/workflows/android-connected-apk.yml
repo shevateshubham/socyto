@@ -1,5 +1,7 @@
 name: SOCYTO Connected Android APK
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 jobs:
   connected-build:
@@ -8,16 +10,6 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Require live SOCYTO backend configuration
-        env:
-          SOCYTO_SUPABASE_URL: ${{ vars.SOCYTO_SUPABASE_URL }}
-          SOCYTO_SUPABASE_PUBLISHABLE_KEY: ${{ vars.SOCYTO_SUPABASE_PUBLISHABLE_KEY }}
-        run: |
-          test "$SOCYTO_SUPABASE_URL" = "https://ycpwqdukfsmxrfntsfyd.supabase.co" || { echo "Set the real SOCYTO_SUPABASE_URL GitHub Actions variable."; exit 1; }
-          case "$SOCYTO_SUPABASE_PUBLISHABLE_KEY" in
-            sb_publishable_*) ;;
-            *) echo "Set a public Supabase publishable key, never a secret/service role key."; exit 1 ;;
-          esac
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -31,11 +23,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Test and assemble connected Android APK
-        env:
-          SOCYTO_SUPABASE_URL: ${{ vars.SOCYTO_SUPABASE_URL }}
-          SOCYTO_SUPABASE_PUBLISHABLE_KEY: ${{ vars.SOCYTO_SUPABASE_PUBLISHABLE_KEY }}
-        run: gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
+      - name: Verify backend and build connected Android APK
+        run: gradle :app:verifyProductionBackend :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: socyto-connected-apk
