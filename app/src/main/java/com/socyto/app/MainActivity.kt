@@ -252,8 +252,17 @@ private fun SocytoApp() {
                     )
                 } else {
                 if (scope == AccountScope.PlatformAdmin) {
-                    Text("Subscribed businesses", fontWeight = FontWeight.SemiBold)
-                    if (businesses.isEmpty() && !busy) Text("No businesses provisioned.")
+                    SocytoMetric("Registered businesses", businesses.size.toString(),
+                        "Independent tenant workspaces")
+                    SocytoSectionHeader(
+                        title = "Businesses",
+                        subtitle = "Firm accounts and tenant management",
+                        action = if (showBusinessRegistration) "Close" else "+ New firm",
+                        onAction = { showBusinessRegistration = !showBusinessRegistration }
+                    )
+                    if (businesses.isEmpty() && !busy) SocytoEmptyState(
+                        "No businesses yet", "Register a firm to provision its workspace."
+                    )
                     businesses.forEach { business ->
                         OutlinedButton(onClick = {
                             busy = true
@@ -296,11 +305,24 @@ private fun SocytoApp() {
                             }
                         }
                     }
-                    RegisterBusinessForm(
-                        session = authenticated,
-                        api = api,
-                        onRegistered = { loadWorkspace(authenticated, AccountScope.PlatformAdmin) }
-                    )
+                    if (showBusinessRegistration) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(22.dp),
+                            color = MaterialTheme.colorScheme.surface
+                        ) {
+                            Column(Modifier.padding(16.dp)) {
+                                RegisterBusinessForm(
+                                    session = authenticated,
+                                    api = api,
+                                    onRegistered = {
+                                        showBusinessRegistration = false
+                                        loadWorkspace(authenticated, AccountScope.PlatformAdmin)
+                                    }
+                                )
+                            }
+                        }
+                    }
                     if (selectedBusiness != null) {
                         OutlinedButton(
                             onClick = { editingBranding = true },
