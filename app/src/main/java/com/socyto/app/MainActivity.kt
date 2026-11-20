@@ -363,23 +363,75 @@ private fun SocytoApp() {
 }
 
 @Composable
-private fun LoginForm(enabled: Boolean, compact: Boolean = false, onLogin: (String, String) -> Unit, onSignUp: (String, String) -> Unit) {
+private fun LoginForm(
+    enabled: Boolean,
+    compact: Boolean = false,
+    onLogin: (String, String) -> Unit,
+    onSignUp: (String, String) -> Unit
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp)) {
-    OutlinedTextField(email, { email = it }, label = { Text("Email") },
-        singleLine = true, modifier = Modifier.fillMaxWidth())
-    OutlinedTextField(password, { password = it }, label = { Text("Password") },
-        singleLine = true, visualTransformation = PasswordVisualTransformation(),
-        modifier = Modifier.fillMaxWidth())
-    Button(onClick = { onLogin(email, password) },
-        enabled = enabled && email.isNotBlank() && password.isNotBlank(),
-        modifier = Modifier.fillMaxWidth()) { Text("Sign in") }
-    OutlinedButton(
-        onClick = { onSignUp(email.trim(), password) },
-        enabled = enabled && email.contains("@") && password.length >= 8,
-        modifier = Modifier.fillMaxWidth()
-    ) { Text("Create account") }
-    if (!compact) Text("New accounts have no administrative privileges until approved.")
+    if (compact) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                OutlinedTextField(
+                    email, { email = it },
+                    label = { Text("Email") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    password, { password = it },
+                    label = { Text("Password") }, singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Button(
+                    onClick = { onLogin(email, password) },
+                    enabled = enabled && email.isNotBlank() && password.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Sign in") }
+                OutlinedButton(
+                    onClick = { onSignUp(email.trim(), password) },
+                    enabled = enabled && email.contains("@") && password.length >= 8,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Create account") }
+            }
+        }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                email, { email = it },
+                label = { Text("Email") }, singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                password, { password = it },
+                label = { Text("Password") }, singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Button(
+                onClick = { onLogin(email, password) },
+                enabled = enabled && email.isNotBlank() && password.isNotBlank(),
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Sign in") }
+            OutlinedButton(
+                onClick = { onSignUp(email.trim(), password) },
+                enabled = enabled && email.contains("@") && password.length >= 8,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Create account") }
+            Text("New accounts have no administrative privileges until approved.")
+        }
     }
 }
