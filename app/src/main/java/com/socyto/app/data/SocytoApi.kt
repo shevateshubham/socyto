@@ -5,6 +5,7 @@ import android.os.Looper
 import com.socyto.app.BuildConfig
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -442,10 +443,15 @@ class SocytoApi {
                 throw IllegalStateException(message)
             }
             val text = connection.inputStream.bufferedReader().use { it.readText() }
-            return when {
-                text.isBlank() -> JSONObject()
-                text.startsWith("[") -> JSONObject().put("_rows", text)
-                else -> JSONObject(text)
+            // PostgREST RPCs may return JSON scalar values (for example a UUID string
+            // from publish_project_progress), arrays, objects or an empty 204 response.
+            // A successful write must not be treated as failed just because its response
+            // is a JSON string rather than a JSON object.
+            if (text.isBlank()) return JSONObject()
+            return when (val parsed = JSONTokener(text).nextValue()) {
+                is JSONObject -> parsed
+                is JSONArray -> JSONObject().put("_rows", parsed.toString())
+                else -> JSONObject().put("_value", parsed)
             }
         } finally {
             connection.disconnect()
