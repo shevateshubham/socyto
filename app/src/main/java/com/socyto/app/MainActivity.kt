@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -128,7 +130,7 @@ private fun SocytoApp() {
                             contentScale = ContentScale.Fit
                         )
                     }
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             branding?.displayName ?: "Project Workspace",
                             color = onPrimary,
@@ -144,8 +146,15 @@ private fun SocytoApp() {
             }
         }
     ) { inset ->
+        BoxWithConstraints(Modifier.fillMaxSize().padding(inset).imePadding()) {
+        val contentPadding = when {
+            maxWidth < 360.dp -> 12.dp
+            maxWidth < 600.dp -> 16.dp
+            else -> 24.dp
+        }
         Column(
-            Modifier.fillMaxSize().padding(inset).verticalScroll(rememberScrollState()).padding(20.dp),
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                .padding(horizontal = contentPadding, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (session == null) {
@@ -338,6 +347,7 @@ private fun SocytoApp() {
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             if (message.isNotEmpty()) Text(message, color = MaterialTheme.colorScheme.error)
         }
+    }
     }
     }
 }
