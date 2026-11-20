@@ -322,17 +322,15 @@ private fun SocytoApp() {
                     )
                 }
                 if (selectedProject == null) {
-                    Text("Projects", fontWeight = FontWeight.SemiBold)
-                    if (projects.isEmpty() && !busy) Text("No accessible projects.")
+                    SocytoSectionHeader("Projects", "Open a workspace to see its activity")
+                    if (projects.isEmpty() && !busy) SocytoEmptyState(
+                        "No projects yet", "Your assigned projects will be listed here."
+                    )
                     projects.forEach { project ->
-                        OutlinedButton(
-                            onClick = { loadProject(authenticated, project) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text(project.name) }
+                        SocytoProjectTile(project) { loadProject(authenticated, project) }
                     }
-
                 } else {
-                    Text(selectedProject!!.name, style = MaterialTheme.typography.titleLarge)
+                    SocytoSectionHeader(selectedProject!!.name, "Project activity and site management")
                     if (scope is AccountScope.BusinessAdmin) {
                         ProjectSiteOperations(selectedProject!!, authenticated, api)
                         ProjectPublishingPanel(authenticated, api, selectedProject!!) {
