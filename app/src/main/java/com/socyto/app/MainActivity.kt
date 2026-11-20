@@ -473,7 +473,24 @@ private fun LoginForm(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    if (compact) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(24.dp),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(if (compact) 12.dp else 22.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (!compact) {
+                Text("Your workspace", style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold)
+                Text("Sign in with your verified email, or create your account.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (compact) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -535,5 +552,8 @@ private fun LoginForm(
             ) { Text("Create account") }
             Text("New accounts have no administrative privileges until approved.")
         }
+    }
+}
+      }
     }
 }
