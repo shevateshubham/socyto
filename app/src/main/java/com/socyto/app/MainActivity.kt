@@ -65,11 +65,12 @@ private fun SocytoApp() {
                 AccountScope.PlatformAdmin -> emptyList()
                 is AccountScope.BusinessAdmin -> api.projects(authenticated, accountScope.business.id)
                 AccountScope.Client -> api.projects(authenticated)
+                AccountScope.Unassigned -> emptyList()
             }
             val businessId = when (accountScope) {
                 is AccountScope.BusinessAdmin -> accountScope.business.id
                 AccountScope.Client -> projectList.firstOrNull()?.businessId
-                AccountScope.PlatformAdmin -> null
+                AccountScope.PlatformAdmin, AccountScope.Unassigned -> null
             }
             Triple(businessList, projectList, businessId?.let { api.branding(authenticated, it) })
         }) { result ->
@@ -184,6 +185,7 @@ private fun SocytoApp() {
                     AccountScope.PlatformAdmin -> "Super Admin"
                     is AccountScope.BusinessAdmin -> role.business.name
                     AccountScope.Client -> "My projects"
+                    AccountScope.Unassigned -> "Account awaiting access"
                     null -> "Loading account"
                 }, style = MaterialTheme.typography.headlineMedium)
                 OutlinedButton(onClick = {
@@ -199,7 +201,19 @@ private fun SocytoApp() {
                     message = ""
                 }) { Text("Sign out") }
                 val authenticated = session!!
-                if (scope == AccountScope.PlatformAdmin && editingBranding && selectedBusiness != null) {
+                if (scope == AccountScope.Unassigned) {
+                    Text("Signed in, but no firm or project access assigned. Ask your SOCYTO administrator to link your verified account.")
+                    OutlinedButton(onClick = {
+                        busy = true
+                        api.async({ api.accountScope(authenticated) }) { result ->
+                            busy = false
+                            result.onSuccess {
+                                scope = it
+                                loadWorkspace(authenticated, it)
+                            }.onFailure { message = it.message ?: "Unable to check access." }
+                        }
+                    }, enabled = !busy) { Text("Check access again") }
+                } else if (scope == AccountScope.PlatformAdmin && editingBranding && selectedBusiness != null) {
                     val firm = selectedBusiness!!
                     BusinessBrandEditor(
                         business = firm,
