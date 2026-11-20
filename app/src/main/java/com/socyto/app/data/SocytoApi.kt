@@ -37,6 +37,7 @@ sealed class AccountScope {
     data object PlatformAdmin : AccountScope()
     data class BusinessAdmin(val business: BusinessSummary) : AccountScope()
     data object Client : AccountScope()
+    data object Unassigned : AccountScope()
 }
 
 class SocytoApi {
@@ -108,8 +109,9 @@ class SocytoApi {
                 return AccountScope.BusinessAdmin(BusinessSummary(businessId, business.getString("business_name"), business.getString("account_status")))
             }
         }
-        // Client access is still verified by project-specific RLS, never by assumed ownership.
-        return AccountScope.Client
+        // A verified user has no rights until assigned to an active firm/project.
+        val assignedProjects = getRows("projects", "project_id", "limit=1", session)
+        return if (assignedProjects.length() > 0) AccountScope.Client else AccountScope.Unassigned
     }
 
     fun businesses(session: Session): List<BusinessSummary> {
