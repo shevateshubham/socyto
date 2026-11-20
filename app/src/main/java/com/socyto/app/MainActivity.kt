@@ -310,16 +310,34 @@ private fun SocytoApp() {
                     }
                 }
                 if (scope is AccountScope.BusinessAdmin && selectedProject == null) {
-                    BusinessManagementPanel(
-                        business = (scope as AccountScope.BusinessAdmin).business,
-                        session = authenticated,
-                        api = api,
-                        onProjectCreated = { created ->
-                            projects = listOf(created) + projects
-                            selectedProject = created
-                            message = ""
-                        }
+                    SocytoMetric("Project portfolio", projects.size.toString(), "Projects in this business")
+                    SocytoSectionHeader(
+                        title = "Manage your work",
+                        subtitle = "Clients, sites and new project intake",
+                        action = if (showManagement) "Close" else "+ Add new",
+                        onAction = { showManagement = !showManagement }
                     )
+                    if (showManagement) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(22.dp),
+                            color = MaterialTheme.colorScheme.surface
+                        ) {
+                            Column(Modifier.padding(16.dp)) {
+                                BusinessManagementPanel(
+                                    business = (scope as AccountScope.BusinessAdmin).business,
+                                    session = authenticated,
+                                    api = api,
+                                    onProjectCreated = { created ->
+                                        projects = listOf(created) + projects
+                                        selectedProject = created
+                                        showManagement = false
+                                        message = ""
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
                 if (selectedProject == null) {
                     SocytoSectionHeader("Projects", "Open a workspace to see its activity")
