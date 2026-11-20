@@ -25,6 +25,7 @@ fun BusinessManagementPanel(
     var projectType by remember(business.id) { mutableStateOf("") }
     var projectLocation by remember(business.id) { mutableStateOf("") }
     var selectedClientId by remember(business.id) { mutableStateOf<String?>(null) }
+    var intakeTab by remember(business.id) { mutableIntStateOf(0) }
     var loading by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
 
@@ -34,6 +35,13 @@ fun BusinessManagementPanel(
         }
     }
 
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(selected = intakeTab == 0, onClick = { intakeTab = 0 },
+            label = { Text("Add client") })
+        FilterChip(selected = intakeTab == 1, onClick = { intakeTab = 1 },
+            label = { Text("Create project") })
+    }
+    if (intakeTab == 0) {
     SocytoSectionHeader("New client", "Add a client to your business workspace")
     OutlinedTextField(
         value = clientName, onValueChange = { clientName = it },
@@ -56,6 +64,7 @@ fun BusinessManagementPanel(
                 result.onSuccess { client ->
                     clients = clients + client
                     selectedClientId = client.id
+                    intakeTab = 1
                     clientName = ""
                     clientEmail = ""
                     message = "Client saved to database."
@@ -64,7 +73,7 @@ fun BusinessManagementPanel(
         }
     ) { Text("Save client") }
 
-    HorizontalDivider()
+    } else {
     SocytoSectionHeader("New project", "Connect a project to an existing client")
     if (clients.isEmpty()) {
         Text("Create a client first, then assign the site to that client.")
@@ -124,6 +133,7 @@ fun BusinessManagementPanel(
                 }
             }
         ) { Text("Create project") }
+    }
     }
     if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
     if (message.isNotBlank()) Text(message)
