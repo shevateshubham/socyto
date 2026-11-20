@@ -3,6 +3,11 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+val socytoBackendUrl = providers.environmentVariable("SOCYTO_SUPABASE_URL").orNull?.takeIf { it.isNotBlank() }
+    ?: "https://ycpwqdukfsmxrfntsfyd.supabase.co"
+val socytoPublishableKey = providers.environmentVariable("SOCYTO_SUPABASE_PUBLISHABLE_KEY").orNull?.takeIf { it.isNotBlank() }
+    ?: "sb_publishable_TO8PiJySbPKM9_bqgXhGbQ_B2Vs_SXZ"
+
 android {
     buildFeatures { buildConfig = true }
     namespace = "com.socyto.app"
@@ -11,11 +16,11 @@ android {
         applicationId = "com.socyto.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
         // Publishable client keys are not secrets; never use a service-role key in an APK.
-        val backendUrl = providers.environmentVariable("SOCYTO_SUPABASE_URL").orElse("https://ycpwqdukfsmxrfntsfyd.supabase.co").get()
-        val publishableKey = providers.environmentVariable("SOCYTO_SUPABASE_PUBLISHABLE_KEY").orElse("sb_publishable_TO8PiJySbPKM9_bqgXhGbQ_B2Vs_SXZ").get()
+        val backendUrl = socytoBackendUrl
+        val publishableKey = socytoPublishableKey
         buildConfigField("String", "SUPABASE_URL", "\""+backendUrl.replace("\\","\\\\").replace("\"","\\\"")+"\"")
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\""+publishableKey.replace("\\","\\\\").replace("\"","\\\"")+"\"")
     }
@@ -38,9 +43,9 @@ dependencies {
 // A production APK is never built without a real backend configuration.
 tasks.register("verifyProductionBackend") {
     doLast {
-        val url = providers.environmentVariable("SOCYTO_SUPABASE_URL").orElse("").get()
-        val key = providers.environmentVariable("SOCYTO_SUPABASE_PUBLISHABLE_KEY").orElse("").get()
-        check(url.startsWith("https://") && key.isNotBlank()) {
+        val url = socytoBackendUrl
+        val key = socytoPublishableKey
+        check(url == "https://ycpwqdukfsmxrfntsfyd.supabase.co" && key.startsWith("sb_publishable_")) {
             "Release blocked: configure the real SOCYTO Supabase URL and publishable key."
         }
         check(!key.startsWith("sb_secret_") && !key.startsWith("service_role")) {
