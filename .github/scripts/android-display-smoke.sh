@@ -47,7 +47,7 @@ print('Initial on-screen labels:',text[:2000])
 if orientation=='landscape':
     assert 'Email' in text and 'Password' in text, 'Compact landscape login inputs missing'
 else:
-    assert 'Welcome' in text or 'Secure business and project management' in text, 'SOCYTO login heading missing'
+    assert 'Design. Execute. Deliver.' in text or 'Your workspace' in text, 'SOCYTO branded login heading missing'
 with open(png_file,'rb') as f:
     assert f.read(8)==b'\x89PNG\r\n\x1a\n', 'Screenshot not PNG'
     f.read(8)
