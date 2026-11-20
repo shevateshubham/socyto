@@ -463,12 +463,30 @@ private fun SocytoApp() {
                     }
                 }
                 if (selectedProject == null) {
-                    SocytoSectionHeader("Projects", "Open a workspace to see its activity")
-                    if (projects.isEmpty() && !busy) SocytoEmptyState(
-                        "No projects yet", "Your assigned projects will be listed here."
-                    )
-                    projects.forEach { project ->
-                        SocytoProjectTile(project) { loadProject(authenticated, project) }
+                    val shouldShowProjects = when (scope) {
+                        AccountScope.PlatformAdmin -> selectedBusiness != null
+                        is AccountScope.BusinessAdmin ->
+                            workspaceTab == "overview" || workspaceTab == "projects"
+                        AccountScope.Client ->
+                            workspaceTab == "overview" || workspaceTab == "projects"
+                        else -> false
+                    }
+                    if (shouldShowProjects) {
+                        if (scope !is AccountScope.BusinessAdmin) {
+                            SocytoSectionHeader(
+                                if (scope == AccountScope.Client) "Your projects" else "Firm projects",
+                                "Open a project to see its published updates"
+                            )
+                        }
+                        if (projects.isEmpty() && !busy) SocytoEmptyState(
+                            "No projects yet", "Your assigned projects will be listed here."
+                        )
+                        projects.forEach { project ->
+                            SocytoArchitectureProjectCard(project) {
+                                projectSection = 0
+                                loadProject(authenticated, project)
+                            }
+                        }
                     }
                 } else {
                     SocytoSectionHeader(selectedProject!!.name, "Project activity and site management")
