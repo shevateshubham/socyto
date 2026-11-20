@@ -38,16 +38,35 @@ fun ProjectPublishingPanel(
     }
     LaunchedEffect(project.id) { reload() }
 
-    HorizontalDivider()
-    Text("Work progress — private draft", style = MaterialTheme.typography.titleLarge)
-    Text("Changes stay private until you explicitly publish them to the client.")
-    OutlinedButton(onClick = { reload() }, enabled = !loading) { Text("Refresh requirements") }
+    SocytoPageHeading(
+        "PRIVATE WORK PROGRESS",
+        "Update your work plan",
+        "Track checklist and quantity completion. The client sees only published snapshots."
+    )
+    SocytoPrivacyNotice("Changes remain private until you explicitly publish this progress.")
+    OutlinedButton(
+        onClick = { reload() }, enabled = !loading,
+        modifier = Modifier.heightIn(min = 48.dp)
+    ) { Text("Refresh requirements") }
     if (requirements.isEmpty() && !loading) Text("No work requirements yet.")
     requirements.forEach { requirement ->
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(requirement.title, style = MaterialTheme.typography.titleSmall)
-                Text("Effort: ${requirement.effortScore} · ${requirement.type}")
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(18.dp),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp, MaterialTheme.colorScheme.outlineVariant)
+        ) {
+            Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text(requirement.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold)
+                Text(
+                    "EFFORT " + requirement.effortScore +
+                        " / 3  ·  " + if (requirement.type == "checklist") "CHECKLIST" else "QUANTITY",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
                 if (requirement.type == "checklist") {
                     Row {
                         Checkbox(
@@ -68,7 +87,21 @@ fun ProjectPublishingPanel(
                         Text("Completed", modifier = Modifier.padding(top = 12.dp))
                     }
                 } else {
-                    Text("Required: ${requirement.requiredQuantity ?: 0.0} ${requirement.unit.orEmpty()}")
+                    Text("Target: " + (requirement.requiredQuantity ?: 0.0) +
+                        " " + requirement.unit.orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium)
+                    val target = requirement.requiredQuantity ?: 0.0
+                    if (target > 0) {
+                        LinearProgressIndicator(
+                            progress = {
+                                (requirement.completedQuantity / target).toFloat()
+                                    .coerceIn(0f, 1f)
+                            },
+                            modifier = Modifier.fillMaxWidth().height(7.dp),
+                            color = MaterialTheme.colorScheme.secondary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    }
                     OutlinedTextField(
                         value = editingQuantity[requirement.id] ?: requirement.completedQuantity.toString(),
                         onValueChange = { entered ->
@@ -90,7 +123,7 @@ fun ProjectPublishingPanel(
                             result.onSuccess { requirements = it }
                                 .onFailure { message = it.message ?: "Unable to update quantity." }
                         }
-                    }) { Text("Save quantity") }
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Save completed quantity") }
                 }
             }
         }
@@ -132,6 +165,11 @@ fun ProjectPublishingPanel(
                 color = MaterialTheme.colorScheme.onPrimaryContainer)
         }
     }
+    SocytoStepCard(
+        "SHARE WITH CLIENT",
+        "Prepare a publication",
+        "Only approved updates will be visible in the client portal."
+    ) {
     OutlinedTextField(
         value = publicationNote,
         onValueChange = { publicationNote = it.take(4000) },
@@ -143,7 +181,8 @@ fun ProjectPublishingPanel(
         enabled = !loading && requirements.isNotEmpty(),
         onClick = { confirmation = true },
         modifier = Modifier.fillMaxWidth()
-    ) { Text("Publish progress to client") }
+    ) { Text("Review and publish progress") }
+    }
     if (confirmation) {
         AlertDialog(
             onDismissRequest = { confirmation = false },
@@ -167,5 +206,9 @@ fun ProjectPublishingPanel(
         )
     }
     if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-    if (message.isNotBlank()) Text(message)
+    if (message.isNotBlank()) SocytoFeedback(
+        message, isError = message.contains("unable", true) ||
+            message.contains("failed", true) ||
+            message.contains("could not", true),
+        onDismiss = { message = "" })
 }
