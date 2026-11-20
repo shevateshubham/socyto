@@ -138,7 +138,7 @@ private fun SocytoApp() {
     Scaffold(
         containerColor = brandBackground,
         topBar = {
-            Surface(color = brandPrimary, shadowElevation = 3.dp) {
+            if (session != null) Surface(color = brandPrimary, shadowElevation = 3.dp) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -210,12 +210,10 @@ private fun SocytoApp() {
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             if (session == null) {
-                SocytoWelcomePanel(compact = isLandscape)
-                if (!api.isConfigured) {
-                    Text("Cloud backend is not configured for this build. No business data is stored locally.",
-                        color = MaterialTheme.colorScheme.error)
-                } else {
-                    LoginForm(enabled = !busy, compact = isLandscape, onSignUp = { email, password ->
+                SocytoFlootLogin(
+                    enabled = !busy,
+                    backendConfigured = api.isConfigured,
+                    onSignUp = { email, password ->
                         busy = true
                         message = ""
                         api.async({ api.signUp(email, password) }) { result ->
@@ -240,7 +238,6 @@ private fun SocytoApp() {
                             }.onFailure { message = it.message ?: "Sign-in failed." }
                         }
                     })
-                }
             } else {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
