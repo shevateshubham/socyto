@@ -553,7 +553,6 @@ private fun LoginForm(
             Text("New accounts have no administrative privileges until approved.")
         }
     }
-}
-      }
+        }
     }
 }
