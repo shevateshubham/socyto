@@ -10,7 +10,12 @@ OUT="android-ui-evidence/${PROFILE}"
 mkdir -p "$OUT"
 
 adb wait-for-device
-adb shell wm size "${WIDTH}x${HEIGHT}"
+if [[ "$ORIENTATION" == landscape ]]; then
+    # Android rotation swaps display axes; feed portrait-native dimensions.
+    adb shell wm size "${HEIGHT}x${WIDTH}"
+else
+    adb shell wm size "${WIDTH}x${HEIGHT}"
+fi
 adb shell wm density "$DENSITY"
 adb shell settings put system font_scale "$FONT"
 adb shell settings put system accelerometer_rotation 0
@@ -33,9 +38,9 @@ adb shell wm size > "$OUT/display-config.txt"
 adb shell wm density >> "$OUT/display-config.txt"
 adb shell settings get system font_scale >> "$OUT/display-config.txt"
 
-python3 - "$OUT/01-login-ui.xml" "$OUT/01-login-initial.png" <<'PY'
+python3 - "$OUT/01-login-ui.xml" "$OUT/01-login-initial.png" "$ORIENTATION" <<'PY'
 import sys, xml.etree.ElementTree as ET, struct
-xml_file,png_file=sys.argv[1:]
+xml_file,png_file,orientation=sys.argv[1:]
 root=ET.parse(xml_file).getroot()
 text=' '.join(n.attrib.get('text','')+' '+n.attrib.get('content-desc','') for n in root.iter('node'))
 print('Initial on-screen labels:',text[:2000])
@@ -45,6 +50,10 @@ with open(png_file,'rb') as f:
     f.read(8)
     w,h=struct.unpack('>II',f.read(8))
 assert w>200 and h>200, f'Invalid screenshot size {w}x{h}'
+if orientation=='landscape':
+    assert w > h, f'Landscape request produced portrait screenshot {w}x{h}'
+else:
+    assert h > w, f'Portrait request produced landscape screenshot {w}x{h}'
 print('Real app login screen rendered:', w,h)
 PY
 
