@@ -65,7 +65,7 @@ fun SocytoFlootLogin(
                 Icon(Icons.Filled.Lock, contentDescription = null,
                     modifier = Modifier.size(14.dp), tint = color.onSurfaceVariant)
                 Spacer(Modifier.width(6.dp))
-                Text("Private by design. Securely managed.",
+                Text("Private by design. Securely managed.  ·  v" + BuildConfig.VERSION_NAME,
                     style = MaterialTheme.typography.labelSmall,
                     color = color.onSurfaceVariant)
             }
