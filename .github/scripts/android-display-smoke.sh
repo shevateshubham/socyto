@@ -61,13 +61,13 @@ PY
 SIZE="$(adb shell wm size | tail -n 1 | grep -oE '[0-9]+x[0-9]+' | tail -n 1)"
 ACTUAL_W="${SIZE%x*}"
 ACTUAL_H="${SIZE#*x}"
-adb shell input swipe "$(( ACTUAL_W/2 ))" "$(( ACTUAL_H*4/5 ))" "$(( ACTUAL_W/2 ))" "$(( ACTUAL_H/4 ))" 450
+adb shell input touchscreen swipe 12 "$(( ACTUAL_H*4/5 ))" 12 "$(( ACTUAL_H/4 ))" 600
 sleep 2
 adb exec-out screencap -p > "$OUT/02-login-scrolled.png"
 adb shell uiautomator dump /sdcard/socyto_scrolled.xml > /dev/null
 adb pull /sdcard/socyto_scrolled.xml "$OUT/02-login-scrolled-ui.xml" > /dev/null
 # Larger system fonts may require additional swipes to reach the final action.
-adb shell input swipe "$(( ACTUAL_W/2 ))" "$(( ACTUAL_H*4/5 ))" "$(( ACTUAL_W/2 ))" "$(( ACTUAL_H/4 ))" 450
+adb shell input touchscreen swipe 12 "$(( ACTUAL_H*4/5 ))" 12 "$(( ACTUAL_H/4 ))" 600
 sleep 2
 adb exec-out screencap -p > "$OUT/03-login-bottom.png"
 adb shell uiautomator dump /sdcard/socyto_bottom.xml > /dev/null
