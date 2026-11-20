@@ -1,6 +1,8 @@
 package com.socyto.app
 
 import android.os.Bundle
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -39,6 +41,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun SocytoApp() {
     val api = remember { SocytoApi() }
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var session by remember { mutableStateOf<Session?>(null) }
     var branding by remember { mutableStateOf<BusinessBranding?>(null) }
     val brandPrimary = hexColor(branding?.primaryColorHex ?: "#2E4A2B", deepOlive)
@@ -139,7 +142,7 @@ private fun SocytoApp() {
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
-                        Text(
+                        if (!isLandscape) Text(
                             "DESIGN · EXECUTE · DELIVER",
                             color = onPrimary,
                             style = MaterialTheme.typography.labelSmall,
@@ -163,13 +166,15 @@ private fun SocytoApp() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (session == null) {
-                Text("Welcome", style = MaterialTheme.typography.headlineMedium)
-                Text("Secure business and project management")
+                if (!isLandscape) {
+                    Text("Welcome", style = MaterialTheme.typography.headlineMedium)
+                    Text("Secure business and project management")
+                }
                 if (!api.isConfigured) {
                     Text("Cloud backend is not configured for this build. No business data is stored locally.",
                         color = MaterialTheme.colorScheme.error)
                 } else {
-                    LoginForm(enabled = !busy, onSignUp = { email, password ->
+                    LoginForm(enabled = !busy, compact = isLandscape, onSignUp = { email, password ->
                         busy = true
                         message = ""
                         api.async({ api.signUp(email, password) }) { result ->
@@ -358,9 +363,10 @@ private fun SocytoApp() {
 }
 
 @Composable
-private fun LoginForm(enabled: Boolean, onLogin: (String, String) -> Unit, onSignUp: (String, String) -> Unit) {
+private fun LoginForm(enabled: Boolean, compact: Boolean = false, onLogin: (String, String) -> Unit, onSignUp: (String, String) -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    Column(verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp)) {
     OutlinedTextField(email, { email = it }, label = { Text("Email") },
         singleLine = true, modifier = Modifier.fillMaxWidth())
     OutlinedTextField(password, { password = it }, label = { Text("Password") },
@@ -374,5 +380,6 @@ private fun LoginForm(enabled: Boolean, onLogin: (String, String) -> Unit, onSig
         enabled = enabled && email.contains("@") && password.length >= 8,
         modifier = Modifier.fillMaxWidth()
     ) { Text("Create account") }
-    Text("New accounts have no administrative privileges until approved.")
+    if (!compact) Text("New accounts have no administrative privileges until approved.")
+    }
 }
