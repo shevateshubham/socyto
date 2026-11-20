@@ -1,6 +1,8 @@
 package com.socyto.app
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -105,7 +107,31 @@ fun ProjectPublishingPanel(
                 }
             } / totalEffort * 100.0
     }
-    Text("Draft completion: ${weightedProgress?.let { "%.1f%%".format(it) } ?: "Not defined"}")
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.primaryContainer
+    ) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("PRIVATE DRAFT", style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer)
+            Text(
+                weightedProgress?.let { "%.1f%%".format(it) } ?: "Not defined",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            LinearProgressIndicator(
+                progress = { ((weightedProgress ?: 0.0) / 100.0).toFloat().coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth().height(8.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+            Text("Client progress changes only after you publish this draft.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer)
+        }
+    }
     OutlinedTextField(
         value = publicationNote,
         onValueChange = { publicationNote = it.take(4000) },
