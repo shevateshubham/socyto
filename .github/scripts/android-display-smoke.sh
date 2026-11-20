@@ -44,7 +44,10 @@ xml_file,png_file,orientation=sys.argv[1:]
 root=ET.parse(xml_file).getroot()
 text=' '.join(n.attrib.get('text','')+' '+n.attrib.get('content-desc','') for n in root.iter('node'))
 print('Initial on-screen labels:',text[:2000])
-assert 'Welcome' in text or 'Secure business and project management' in text, 'SOCYTO login heading missing'
+if orientation=='landscape':
+    assert 'Email' in text and 'Password' in text, 'Compact landscape login inputs missing'
+else:
+    assert 'Welcome' in text or 'Secure business and project management' in text, 'SOCYTO login heading missing'
 with open(png_file,'rb') as f:
     assert f.read(8)==b'\x89PNG\r\n\x1a\n', 'Screenshot not PNG'
     f.read(8)
