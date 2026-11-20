@@ -117,8 +117,8 @@ fun SocytoArchitectureProjectCard(project: ProjectSummary, onClick: () -> Unit) 
         Column {
             Box(Modifier.fillMaxWidth().height(93.dp)
                 .background(MaterialTheme.colorScheme.primaryContainer)) {
+                val stroke = MaterialTheme.colorScheme.primary.copy(alpha = .23f)
                 Canvas(Modifier.fillMaxSize()) {
-                    val stroke = MaterialTheme.colorScheme.primary.copy(alpha = .23f)
                     val w = size.width
                     val h = size.height
                     drawRect(stroke, topLeft = Offset(w * .15f, h * .06f),
