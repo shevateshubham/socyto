@@ -82,7 +82,7 @@ for path in sys.argv[1:]:
     root=ET.parse(path).getroot()
     content += [(n.attrib.get('text','')+' '+n.attrib.get('content-desc','')) for n in root.iter('node')]
 text=' '.join(content)
-for expected in ('Email','Password','Sign in','Create account'):
+for expected in ('Email address','Password','Sign in','Create an account'):
     assert expected in text, f'{expected!r} not available after scrolling'
 print('All login controls accessible on tested screen size')
 PY
