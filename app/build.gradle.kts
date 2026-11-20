@@ -14,8 +14,8 @@ android {
         versionCode = 3
         versionName = "0.3.0"
         // Publishable client keys are not secrets; never use a service-role key in an APK.
-        val backendUrl = providers.environmentVariable("SOCYTO_SUPABASE_URL").orElse("").get()
-        val publishableKey = providers.environmentVariable("SOCYTO_SUPABASE_PUBLISHABLE_KEY").orElse("").get()
+        val backendUrl = providers.environmentVariable("SOCYTO_SUPABASE_URL").orElse("https://ycpwqdukfsmxrfntsfyd.supabase.co").get()
+        val publishableKey = providers.environmentVariable("SOCYTO_SUPABASE_PUBLISHABLE_KEY").orElse("sb_publishable_TO8PiJySbPKM9_bqgXhGbQ_B2Vs_SXZ").get()
         buildConfigField("String", "SUPABASE_URL", "\""+backendUrl.replace("\\","\\\\").replace("\"","\\\"")+"\"")
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\""+publishableKey.replace("\\","\\\\").replace("\"","\\\"")+"\"")
     }
