@@ -392,15 +392,44 @@ private fun SocytoApp() {
                         ) { Text("Edit ${selectedBusiness!!.name} branding") }
                     }
                 }
+                if (selectedProject == null && workspaceTab == "overview") {
+                    when (scope) {
+                        AccountScope.PlatformAdmin -> {
+                            SocytoEditorialHeader("PLATFORM ADMINISTRATION", "Your business network",
+                                "Independent practices, brought together under one secure platform.")
+                            SocytoArchitecturalHero(
+                                "Every studio. Its own identity.",
+                                "SOCYTO PLATFORM",
+                                "Manage firms, subscriptions, branding and business access."
+                            )
+                        }
+                        is AccountScope.BusinessAdmin -> {
+                            SocytoEditorialHeader("YOUR STUDIO", "A clearer way to work.",
+                                "A considered view of your projects and client commitments.")
+                            SocytoArchitecturalHero(
+                                "Thoughtful spaces. Clear progress.",
+                                "YOUR STUDIO AT A GLANCE",
+                                "Keep every project organized from first brief to final detail."
+                            )
+                            SocytoMetric("PROJECT PORTFOLIO", projects.size.toString(),
+                                "Real projects in your workspace")
+                        }
+                        AccountScope.Client -> {
+                            SocytoEditorialHeader("YOUR PROJECT PORTAL", "Welcome to your project.",
+                                "A clear view of progress shared by your design studio.")
+                            SocytoArchitecturalHero(
+                                "Every update, beautifully considered.",
+                                "CLIENT PROJECT PORTAL",
+                                "Only progress explicitly published to you is visible here."
+                            )
+                        }
+                        AccountScope.Unassigned -> Unit
+                    }
+                }
                 if (scope is AccountScope.BusinessAdmin && selectedProject == null) {
-                    SocytoMetric("Project portfolio", projects.size.toString(), "Projects in this business")
-                    SocytoSectionHeader(
-                        title = "Manage your work",
-                        subtitle = "Clients, sites and new project intake",
-                        action = if (showManagement) "Close" else "+ Add new",
-                        onAction = { showManagement = !showManagement }
-                    )
-                    if (showManagement) {
+                    if (workspaceTab == "clients") {
+                        SocytoSectionHeader("Clients and new projects",
+                            "Manage contacts and add new project sites")
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(22.dp),
@@ -408,18 +437,29 @@ private fun SocytoApp() {
                         ) {
                             Column(Modifier.padding(16.dp)) {
                                 BusinessManagementPanel(
-                                    business = (scope as AccountScope.BusinessAdmin).business,
+                                    business = scope.business,
                                     session = authenticated,
                                     api = api,
                                     onProjectCreated = { created ->
                                         projects = listOf(created) + projects
                                         selectedProject = created
-                                        showManagement = false
+                                        workspaceTab = "projects"
                                         message = ""
                                     }
                                 )
                             }
                         }
+                    } else if (workspaceTab == "materials") {
+                        SocytoMaterialsOverview(projects, authenticated, api) { project ->
+                            loadProject(authenticated, project)
+                        }
+                    } else if (workspaceTab == "overview" || workspaceTab == "projects") {
+                        SocytoSectionHeader(
+                            title = if (workspaceTab == "overview") "Projects in focus" else "Project portfolio",
+                            subtitle = "Browse the work in your practice",
+                            action = "+ Add new",
+                            onAction = { workspaceTab = "clients" }
+                        )
                     }
                 }
                 if (selectedProject == null) {
