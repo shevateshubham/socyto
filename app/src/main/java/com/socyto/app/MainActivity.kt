@@ -126,7 +126,7 @@ private fun SocytoApp() {
             tertiary = brandAccent,
             background = brandBackground,
             onBackground = brandText,
-            surface = brandBackground,
+            surface = Color.White,
             onSurface = brandText,
             primaryContainer = brandPrimary.copy(alpha = 0.13f),
             onPrimaryContainer = brandPrimary,
