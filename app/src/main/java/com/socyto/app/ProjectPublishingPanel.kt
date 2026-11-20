@@ -63,7 +63,7 @@ fun ProjectPublishingPanel(
                     fontWeight = FontWeight.SemiBold)
                 Text(
                     "EFFORT " + requirement.effortScore +
-                        " / 3  ·  " + if (requirement.type == "checklist") "CHECKLIST" else "QUANTITY",
+                        " / 3  ·  " + (if (requirement.type == "checklist") "CHECKLIST" else "QUANTITY"),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.secondary
                 )
