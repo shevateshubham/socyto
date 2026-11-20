@@ -337,17 +337,12 @@ private fun SocytoApp() {
                             loadProject(authenticated, selectedProject!!)
                         }
                     }
-                    Text("Published project updates", fontWeight = FontWeight.SemiBold)
-                    if (updates.isEmpty() && !busy) Text("No updates have been published.")
-                    updates.forEach { update ->
-                        Card(Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(update.progress, fontWeight = FontWeight.Bold)
-                                Text(update.note)
-                                Text(update.publishedAt, style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    }
+                    SocytoSectionHeader("Published progress", "Updates visible to the assigned client")
+                    if (updates.isEmpty() && !busy) SocytoEmptyState(
+                        "Nothing published yet",
+                        "Updates appear here after the business administrator publishes progress."
+                    )
+                    updates.forEach { update -> SocytoUpdateCard(update) }
                     OutlinedButton(onClick = { selectedProject = null; updates = emptyList() }) {
                         Text("Back to projects")
                     }
