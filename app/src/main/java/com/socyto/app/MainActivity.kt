@@ -482,7 +482,7 @@ private fun SocytoApp() {
                             "No projects yet", "Your assigned projects will be listed here."
                         )
                         projects.forEach { project ->
-                            SocytoArchitectureProjectCard(project) {
+                            SocytoArchitectureProjectCard(project, clientView = scope == AccountScope.Client) {
                                 projectSection = 0
                                 loadProject(authenticated, project)
                             }
