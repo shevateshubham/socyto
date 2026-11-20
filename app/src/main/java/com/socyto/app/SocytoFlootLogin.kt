@@ -8,6 +8,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +24,10 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import java.util.Locale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -157,6 +163,7 @@ private fun FlootCredentialCard(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var signingUp by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(25.dp),
@@ -205,14 +212,36 @@ private fun FlootCredentialCard(
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Email address") },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 shape = RoundedCornerShape(12.dp)
             )
+            if (email.isNotBlank()) {
+                Text(
+                    "Full email: " + email.trim().lowercase(Locale.ROOT),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = color.onSurfaceVariant,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             OutlinedTextField(
                 value = password, onValueChange = { password = it },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("Password") },
                 singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                visualTransformation = if (passwordVisible) VisualTransformation.None
+                    else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = if (passwordVisible) Icons.Filled.VisibilityOff
+                                else Icons.Filled.Visibility,
+                            contentDescription = if (passwordVisible) "Hide password"
+                                else "Show password"
+                        )
+                    }
+                },
                 shape = RoundedCornerShape(12.dp)
             )
             Button(
@@ -221,8 +250,9 @@ private fun FlootCredentialCard(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp),
                 shape = RoundedCornerShape(12.dp),
                 onClick = {
-                    if (signingUp) onSignUp(email.trim(), password)
-                    else onLogin(email.trim(), password)
+                    val normalizedEmail = email.trim().lowercase(Locale.ROOT)
+                    if (signingUp) onSignUp(normalizedEmail, password)
+                    else onLogin(normalizedEmail, password)
                 }
             ) {
                 Text(if (signingUp) "Create account" else "Sign in")
