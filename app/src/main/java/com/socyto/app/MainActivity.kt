@@ -201,10 +201,13 @@ private fun SocytoApp() {
             maxWidth < 600.dp -> 16.dp
             else -> 24.dp
         }
+        val contentWidth = if (maxWidth > 880.dp) 880.dp else maxWidth
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                .padding(horizontal = contentPadding, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            Modifier.width(contentWidth).fillMaxHeight()
+                .align(Alignment.TopCenter)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = contentPadding, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             if (session == null) {
                 SocytoWelcomePanel(compact = isLandscape)
