@@ -3,6 +3,10 @@ package com.socyto.app
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
+import android.app.DatePickerDialog
+import java.time.LocalDate
+import java.util.Locale
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -185,7 +189,10 @@ fun ProjectSiteOperations(
     var receiptUnit by remember(project.id) { mutableStateOf("") }
     var receiptRate by remember(project.id) { mutableStateOf("") }
     var supplier by remember(project.id) { mutableStateOf("") }
-    var receiptDate by remember(project.id) { mutableStateOf("") }
+    var receiptDate by remember(project.id) {
+        mutableStateOf(LocalDate.now().toString())
+    }
+    val context = LocalContext.current
     var receiptList by remember(project.id) { mutableStateOf(emptyList<MaterialReceiptSummary>()) }
     var requirementName by remember(project.id) { mutableStateOf("") }
     var quantityBased by remember(project.id) { mutableStateOf(false) }
@@ -220,8 +227,8 @@ fun ProjectSiteOperations(
         )
     }
     if (activeSection == 0) {
-    SocytoSectionHeader("Work requirements", "Private drafts until explicitly published")
-    Text("Draft requirements are private until published through an approved update.")
+    SocytoStepCard("Private work plan", "Add a requirement",
+        "Draft work stays invisible to clients until you publish progress.") {
     OutlinedTextField(requirementName, { requirementName = it },
         label = { Text("Requirement description") }, modifier = Modifier.fillMaxWidth())
     Row {
@@ -257,7 +264,8 @@ fun ProjectSiteOperations(
                     .onFailure { message = it.message ?: "Unable to save requirement." }
             }
         }
-    ) { Text("Save requirement") }
+    , modifier = Modifier.fillMaxWidth()) { Text("Add requirement") }
+    }
 
     } else {
     SocytoSectionHeader("Material expenditure", "Calculated from actual received goods")
@@ -287,6 +295,8 @@ fun ProjectSiteOperations(
             }
         }
     }
+    SocytoStepCard("Actual received goods", "Record a material receipt",
+        "This receipt contributes to the project's real expenditure.") {
     OutlinedTextField(receiptName, { receiptName = it }, label = { Text("Material name") },
         modifier = Modifier.fillMaxWidth())
     OutlinedTextField(receiptQuantity, { receiptQuantity = it }, label = { Text("Quantity received") },
@@ -297,8 +307,16 @@ fun ProjectSiteOperations(
         modifier = Modifier.fillMaxWidth())
     OutlinedTextField(supplier, { supplier = it }, label = { Text("Supplier (optional)") },
         modifier = Modifier.fillMaxWidth())
-    OutlinedTextField(receiptDate, { receiptDate = it },
-        label = { Text("Received date (YYYY-MM-DD)") }, modifier = Modifier.fillMaxWidth())
+    Text("Date received: " + receiptDate,
+        style = MaterialTheme.typography.bodyMedium)
+    OutlinedButton(onClick = {
+        val date = runCatching { LocalDate.parse(receiptDate) }
+            .getOrElse { LocalDate.now() }
+        DatePickerDialog(context, { _, year, month, day ->
+            receiptDate = String.format(Locale.ROOT, "%04d-%02d-%02d",
+                year, month + 1, day)
+        }, date.year, date.monthValue - 1, date.dayOfMonth).show()
+    }, modifier = Modifier.fillMaxWidth()) { Text("Choose received date") }
     Button(
         enabled = !busy && ProjectInputRules.validName(receiptName) &&
             ProjectInputRules.validQuantity(receiptQuantity.toDoubleOrNull() ?: 0.0) &&
@@ -314,14 +332,19 @@ fun ProjectSiteOperations(
                 busy = false
                 result.onSuccess {
                     receiptName = ""; receiptQuantity = ""; receiptRate = ""
-                    receiptUnit = ""; supplier = ""; receiptDate = ""
+                    receiptUnit = ""; supplier = ""; receiptDate = LocalDate.now().toString()
                     message = "Material receipt saved."
                     reloadReceipts()
                 }.onFailure { message = it.message ?: "Unable to save material receipt." }
             }
         }
-    ) { Text("Save material receipt") }
+    , modifier = Modifier.fillMaxWidth()) { Text("Save material receipt") }
+    }
     }
     if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-    if (message.isNotBlank()) Text(message)
+    if (message.isNotBlank()) SocytoFeedback(message,
+        isError = message.contains("unable", true) ||
+            message.contains("failed", true) ||
+            message.contains("could not", true),
+        onDismiss = { message = "" })
 }
