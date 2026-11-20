@@ -1,6 +1,8 @@
 package com.socyto.app
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -227,9 +229,30 @@ fun ProjectSiteOperations(
     } else {
     SocytoSectionHeader("Material expenditure", "Calculated from actual received goods")
     val totalExpenditure = receiptList.sumOf { it.amount }
-    Text("Expenditure from received materials: ₹" + String.format("%.2f", totalExpenditure))
+    SocytoMetric(
+        "Received material expenditure",
+        "₹" + String.format("%,.2f", totalExpenditure),
+        "${receiptList.size} recorded material receipt(s)"
+    )
     receiptList.forEach { receipt ->
-        Text("${receipt.materialName} · ${receipt.quantity} ${receipt.unit} · ₹${String.format("%.2f", receipt.amount)}")
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text(receipt.materialName, fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.bodyMedium)
+                    Text("${receipt.quantity} ${receipt.unit}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Text("₹" + String.format("%,.2f", receipt.amount),
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary)
+            }
+        }
     }
     OutlinedTextField(receiptName, { receiptName = it }, label = { Text("Material name") },
         modifier = Modifier.fillMaxWidth())
