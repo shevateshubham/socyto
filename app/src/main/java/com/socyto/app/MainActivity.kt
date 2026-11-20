@@ -61,6 +61,7 @@ private fun SocytoApp() {
     var message by remember { mutableStateOf("") }
     var showManagement by remember { mutableStateOf(false) }
     var showBusinessRegistration by remember { mutableStateOf(false) }
+    var projectSection by remember { mutableIntStateOf(0) }
     var projects by remember { mutableStateOf(emptyList<ProjectSummary>()) }
     var businesses by remember { mutableStateOf(emptyList<BusinessSummary>()) }
     var selectedBusiness by remember { mutableStateOf<BusinessSummary?>(null) }
@@ -404,17 +405,36 @@ private fun SocytoApp() {
                 } else {
                     SocytoSectionHeader(selectedProject!!.name, "Project activity and site management")
                     if (scope is AccountScope.BusinessAdmin) {
-                        ProjectSiteOperations(selectedProject!!, authenticated, api)
-                        ProjectPublishingPanel(authenticated, api, selectedProject!!) {
-                            loadProject(authenticated, selectedProject!!)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf("Site", "Progress", "Updates").forEachIndexed { index, title ->
+                                FilterChip(
+                                    selected = projectSection == index,
+                                    onClick = { projectSection = index },
+                                    label = { Text(title) }
+                                )
+                            }
                         }
+                        when (projectSection) {
+                            0 -> ProjectSiteOperations(selectedProject!!, authenticated, api)
+                            1 -> ProjectPublishingPanel(authenticated, api, selectedProject!!) {
+                                loadProject(authenticated, selectedProject!!)
+                            }
+                            else -> {
+                                SocytoSectionHeader("Published progress", "Updates visible to this client")
+                                if (updates.isEmpty() && !busy) SocytoEmptyState(
+                                    "Nothing published yet",
+                                    "Client-visible progress snapshots will be shown here."
+                                )
+                                updates.forEach { update -> SocytoUpdateCard(update) }
+                            }
+                        }
+                    } else {
+                        SocytoSectionHeader("Published progress", "Your latest project updates")
+                        if (updates.isEmpty() && !busy) SocytoEmptyState(
+                            "No updates published", "Published updates from your business will appear here."
+                        )
+                        updates.forEach { update -> SocytoUpdateCard(update) }
                     }
-                    SocytoSectionHeader("Published progress", "Updates visible to the assigned client")
-                    if (updates.isEmpty() && !busy) SocytoEmptyState(
-                        "Nothing published yet",
-                        "Updates appear here after the business administrator publishes progress."
-                    )
-                    updates.forEach { update -> SocytoUpdateCard(update) }
                     OutlinedButton(onClick = { selectedProject = null; updates = emptyList() }) {
                         Text("Back to projects")
                     }
