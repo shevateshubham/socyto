@@ -297,6 +297,19 @@ private fun SocytoApp() {
                         "No businesses yet", "Register a firm to provision its workspace."
                     )
                     businesses.forEach { business ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(business.name,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold)
+                        Text(business.status.uppercase(),
+                            color = MaterialTheme.colorScheme.secondary,
+                            style = MaterialTheme.typography.labelSmall)
                         OutlinedButton(onClick = {
                             busy = true
                             api.async({
@@ -313,7 +326,7 @@ private fun SocytoApp() {
                                     .onFailure { message = it.message ?: "Unable to load projects." }
                             }
                         }, modifier = Modifier.fillMaxWidth()) {
-                            Text("${business.name} · ${business.status}")
+                            Text("Open business workspace")
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             if (business.status != "active") {
@@ -336,6 +349,8 @@ private fun SocytoApp() {
                                     }
                                 }, enabled = !busy) { Text("Suspend") }
                             }
+                        }
+                        }
                         }
                     }
                     if (showBusinessRegistration) {
