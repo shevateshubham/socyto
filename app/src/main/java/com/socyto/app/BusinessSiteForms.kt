@@ -37,14 +37,19 @@ fun BusinessManagementPanel(
         }
     }
 
+    SocytoSectionHeader(
+        "Set up a project",
+        "Create a client first, then connect their project to your practice"
+    )
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(selected = intakeTab == 0, onClick = { intakeTab = 0 },
-            label = { Text("Add client") })
+            label = { Text("1 · Client") })
         FilterChip(selected = intakeTab == 1, onClick = { intakeTab = 1 },
-            label = { Text("Create project") })
+            label = { Text("2 · Project") })
     }
     if (intakeTab == 0) {
-    SocytoSectionHeader("New client", "Add a client to your business workspace")
+    SocytoStepCard("Step 01 · Client details", "Who are we designing for?",
+        "Create a client or select an existing client in the next step.") {
     OutlinedTextField(
         value = clientName, onValueChange = { clientName = it },
         label = { Text("Client name") }, modifier = Modifier.fillMaxWidth(),
@@ -73,31 +78,56 @@ fun BusinessManagementPanel(
                 }.onFailure { message = it.message ?: "Unable to save client." }
             }
         }
-    ) { Text("Save client") }
-
+    , modifier = Modifier.fillMaxWidth()) { Text("Save client & continue") }
+    }
     } else {
-    SocytoSectionHeader("New project", "Connect a project to an existing client")
+    SocytoStepCard("Step 02 · Project details", "Start a new project",
+        "Choose an existing client and describe the site.") {
     if (clients.isEmpty()) {
-        Text("Create a client first, then assign the site to that client.")
+        SocytoEmptyState("No clients yet", "Add a client before creating their project.")
+        OutlinedButton(onClick = { intakeTab = 0 }) { Text("Add a client") }
     } else {
-        Text("Select the project's client")
+        Text("SELECT CLIENT", style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.secondary)
         clients.forEach { client ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RadioButton(
-                    selected = selectedClientId == client.id,
-                    onClick = { selectedClientId = client.id }
-                )
-                Text(client.name, modifier = Modifier.padding(top = 12.dp))
-            }
-            OutlinedButton(enabled = !loading, onClick = {
-                loading = true
-                message = ""
-                api.async({ api.linkClientLogin(session, business.id, client.id) }) { result ->
-                    loading = false
-                    result.onSuccess { message = "Verified login linked for ${client.name}." }
-                        .onFailure { message = it.message ?: "Client login linking failed." }
+            Surface(
+                onClick = { selectedClientId = client.id },
+                modifier = Modifier.fillMaxWidth(),
+                color = if (selectedClientId == client.id)
+                    MaterialTheme.colorScheme.primaryContainer
+                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .35f),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    RadioButton(selected = selectedClientId == client.id,
+                        onClick = { selectedClientId = client.id })
+                    Text(client.name, Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium)
                 }
-            }) { Text("Link verified login — ${client.name}") }
+            }
+        }
+        val selectedClient = clients.firstOrNull { it.id == selectedClientId }
+        if (selectedClient != null) {
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !loading,
+                onClick = {
+                    loading = true
+                    message = ""
+                    api.async({
+                        api.linkClientLogin(session, business.id, selectedClient.id)
+                    }) { result ->
+                        loading = false
+                        result.onSuccess {
+                            message = "Verified login linked for " + selectedClient.name
+                        }.onFailure {
+                            message = it.message ?: "Client login linking failed."
+                        }
+                    }
+                }
+            ) { Text("Link verified client login") }
         }
         OutlinedTextField(
             projectName, { projectName = it }, label = { Text("Project name") },
@@ -134,11 +164,14 @@ fun BusinessManagementPanel(
                     }.onFailure { message = it.message ?: "Unable to save project." }
                 }
             }
-        ) { Text("Create project") }
+        , modifier = Modifier.fillMaxWidth()) { Text("Create project") }
+    }
     }
     }
     if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
-    if (message.isNotBlank()) Text(message)
+    if (message.isNotBlank()) SocytoFeedback(message,
+        isError = message.contains("unable",true) || message.contains("failed",true),
+        onDismiss = { message = "" })
 }
 
 @Composable
