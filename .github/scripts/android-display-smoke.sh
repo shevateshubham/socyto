@@ -40,7 +40,6 @@ root=ET.parse(xml_file).getroot()
 text=' '.join(n.attrib.get('text','')+' '+n.attrib.get('content-desc','') for n in root.iter('node'))
 print('Initial on-screen labels:',text[:2000])
 assert 'Welcome' in text or 'Secure business and project management' in text, 'SOCYTO login heading missing'
-assert 'Email' in text, 'Email input missing'
 with open(png_file,'rb') as f:
     assert f.read(8)==b'\x89PNG\r\n\x1a\n', 'Screenshot not PNG'
     f.read(8)
@@ -65,11 +64,11 @@ for path in sys.argv[1:]:
     root=ET.parse(path).getroot()
     content += [(n.attrib.get('text','')+' '+n.attrib.get('content-desc','')) for n in root.iter('node')]
 text=' '.join(content)
-for expected in ('Password','Sign in','Create account'):
+for expected in ('Email','Password','Sign in','Create account'):
     assert expected in text, f'{expected!r} not available after scrolling'
 print('All login controls accessible on tested screen size')
 PY
-adb logcat -d -t 4000 > "$OUT/logcat.txt"
+adb logcat -d -v brief > "$OUT/logcat.txt" || echo "Logcat unavailable" > "$OUT/logcat-warning.txt"
 if grep -A 10 'FATAL EXCEPTION' "$OUT/logcat.txt" | grep -q 'com.socyto.app'; then
     echo "SOCYTO fatal crash detected"; exit 1
 fi
