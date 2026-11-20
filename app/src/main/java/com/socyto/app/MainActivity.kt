@@ -111,6 +111,13 @@ private fun SocytoApp() {
     }
 
     MaterialTheme(
+        shapes = Shapes(
+            extraSmall = RoundedCornerShape(8.dp),
+            small = RoundedCornerShape(12.dp),
+            medium = RoundedCornerShape(18.dp),
+            large = RoundedCornerShape(24.dp),
+            extraLarge = RoundedCornerShape(30.dp)
+        ),
         colorScheme = lightColorScheme(
             primary = brandPrimary,
             onPrimary = onPrimary,
@@ -119,7 +126,11 @@ private fun SocytoApp() {
             background = brandBackground,
             onBackground = brandText,
             surface = brandBackground,
-            onSurface = brandText
+            onSurface = brandText,
+            primaryContainer = brandPrimary.copy(alpha = 0.13f),
+            onPrimaryContainer = brandPrimary,
+            surfaceVariant = brandPrimary.copy(alpha = 0.07f),
+            outlineVariant = brandPrimary.copy(alpha = 0.15f)
         )
     ) {
     Scaffold(
