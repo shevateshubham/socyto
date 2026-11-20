@@ -62,6 +62,7 @@ private fun SocytoApp() {
     var showManagement by remember { mutableStateOf(false) }
     var showBusinessRegistration by remember { mutableStateOf(false) }
     var projectSection by remember { mutableIntStateOf(0) }
+    var workspaceTab by remember { mutableStateOf("overview") }
     var projects by remember { mutableStateOf(emptyList<ProjectSummary>()) }
     var businesses by remember { mutableStateOf(emptyList<BusinessSummary>()) }
     var selectedBusiness by remember { mutableStateOf<BusinessSummary?>(null) }
@@ -182,6 +183,16 @@ private fun SocytoApp() {
                     }
                 }
             }
+        },
+        bottomBar = {
+            if (session != null && scope != null && scope != AccountScope.Unassigned &&
+                selectedProject == null && !editingBranding && !isLandscape) {
+                SocytoRoleNavigation(scope!!, workspaceTab) { tab ->
+                    workspaceTab = tab
+                    showManagement = false
+                    showBusinessRegistration = false
+                }
+            }
         }
     ) { inset ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(inset).imePadding()) {
@@ -221,6 +232,7 @@ private fun SocytoApp() {
                             result.onSuccess { (authenticated, accountScope) ->
                                 session = authenticated
                                 scope = accountScope
+                                workspaceTab = "overview"
                                 loadWorkspace(authenticated, accountScope)
                             }.onFailure { message = it.message ?: "Sign-in failed." }
                         }
@@ -251,6 +263,7 @@ private fun SocytoApp() {
                     editingBranding = false
                     selectedProject = null
                     updates = emptyList()
+                    workspaceTab = "overview"
                     message = ""
                 }) { Text("Sign out") }
                 }
