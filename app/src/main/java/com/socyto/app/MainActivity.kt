@@ -423,7 +423,7 @@ private fun SocytoApp() {
                                 "Only progress explicitly published to you is visible here."
                             )
                         }
-                        AccountScope.Unassigned -> Unit
+                        AccountScope.Unassigned, null -> Unit
                     }
                 }
                 if (scope is AccountScope.BusinessAdmin && selectedProject == null) {
@@ -437,7 +437,7 @@ private fun SocytoApp() {
                         ) {
                             Column(Modifier.padding(16.dp)) {
                                 BusinessManagementPanel(
-                                    business = scope.business,
+                                    business = (scope as AccountScope.BusinessAdmin).business,
                                     session = authenticated,
                                     api = api,
                                     onProjectCreated = { created ->
