@@ -7,7 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.LockOutline
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -62,7 +62,7 @@ fun SocytoFlootLogin(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
-                Icon(Icons.Filled.LockOutline, contentDescription = null,
+                Icon(Icons.Filled.Lock, contentDescription = null,
                     modifier = Modifier.size(14.dp), tint = color.onSurfaceVariant)
                 Spacer(Modifier.width(6.dp))
                 Text("Private by design. Securely managed.",
