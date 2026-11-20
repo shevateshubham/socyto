@@ -6,6 +6,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.Alignment
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,6 +59,8 @@ private fun SocytoApp() {
     var scope by remember { mutableStateOf<AccountScope?>(null) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
+    var showManagement by remember { mutableStateOf(false) }
+    var showBusinessRegistration by remember { mutableStateOf(false) }
     var projects by remember { mutableStateOf(emptyList<ProjectSummary>()) }
     var businesses by remember { mutableStateOf(emptyList<BusinessSummary>()) }
     var selectedBusiness by remember { mutableStateOf<BusinessSummary?>(null) }
@@ -166,10 +171,7 @@ private fun SocytoApp() {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (session == null) {
-                if (!isLandscape) {
-                    Text("Welcome", style = MaterialTheme.typography.headlineMedium)
-                    Text("Secure business and project management")
-                }
+                SocytoWelcomePanel(compact = isLandscape)
                 if (!api.isConfigured) {
                     Text("Cloud backend is not configured for this build. No business data is stored locally.",
                         color = MaterialTheme.colorScheme.error)
