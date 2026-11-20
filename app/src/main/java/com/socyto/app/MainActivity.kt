@@ -136,13 +136,25 @@ private fun SocytoApp() {
     Scaffold(
         containerColor = brandBackground,
         topBar = {
-            Surface(color = brandPrimary) {
+            Surface(color = brandPrimary, shadowElevation = 3.dp) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val brandLogo = branding?.logoUrl
-                    if (brandLogo != null) {
+                    if (brandLogo == null) {
+                        Surface(
+                            modifier = Modifier.size(42.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            color = onPrimary.copy(alpha = 0.14f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("S", color = onPrimary,
+                                    fontWeight = FontWeight.Black,
+                                    style = MaterialTheme.typography.titleLarge)
+                            }
+                        }
+                    } else {
                         AsyncImage(
                             model = brandLogo,
                             contentDescription = "Business logo",
@@ -152,8 +164,9 @@ private fun SocytoApp() {
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            branding?.displayName ?: "Project Workspace",
+                            branding?.displayName ?: "SOCYTO",
                             color = onPrimary,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
