@@ -66,7 +66,13 @@ sleep 2
 adb exec-out screencap -p > "$OUT/02-login-scrolled.png"
 adb shell uiautomator dump /sdcard/socyto_scrolled.xml > /dev/null
 adb pull /sdcard/socyto_scrolled.xml "$OUT/02-login-scrolled-ui.xml" > /dev/null
-python3 - "$OUT/01-login-ui.xml" "$OUT/02-login-scrolled-ui.xml" <<'PY'
+# Larger system fonts may require additional swipes to reach the final action.
+adb shell input swipe "$(( ACTUAL_W/2 ))" "$(( ACTUAL_H*4/5 ))" "$(( ACTUAL_W/2 ))" "$(( ACTUAL_H/4 ))" 450
+sleep 2
+adb exec-out screencap -p > "$OUT/03-login-bottom.png"
+adb shell uiautomator dump /sdcard/socyto_bottom.xml > /dev/null
+adb pull /sdcard/socyto_bottom.xml "$OUT/03-login-bottom-ui.xml" > /dev/null
+python3 - "$OUT/01-login-ui.xml" "$OUT/02-login-scrolled-ui.xml" "$OUT/03-login-bottom-ui.xml" <<'PY'
 import sys, xml.etree.ElementTree as ET
 content=[]
 for path in sys.argv[1:]:
