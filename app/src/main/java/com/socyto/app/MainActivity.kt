@@ -489,7 +489,12 @@ private fun SocytoApp() {
                         }
                     }
                 } else {
-                    SocytoSectionHeader(selectedProject!!.name, "Project activity and site management")
+                    SocytoProjectOverview(
+                        name = selectedProject!!.name,
+                        updates = updates,
+                        readOnly = scope == AccountScope.Client,
+                        onBack = { selectedProject = null; updates = emptyList() }
+                    )
                     if (scope is AccountScope.BusinessAdmin) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             listOf("Site", "Progress", "Updates").forEachIndexed { index, title ->
@@ -506,29 +511,23 @@ private fun SocytoApp() {
                                 loadProject(authenticated, selectedProject!!)
                             }
                             else -> {
-                                SocytoSectionHeader("Published progress", "Updates visible to this client")
-                                if (updates.isEmpty() && !busy) SocytoEmptyState(
-                                    "Nothing published yet",
-                                    "Client-visible progress snapshots will be shown here."
-                                )
-                                updates.forEach { update -> SocytoUpdateCard(update) }
+                                SocytoPublicationTimeline(updates)
                             }
                         }
                     } else {
-                        SocytoSectionHeader("Published progress", "Your latest project updates")
-                        if (updates.isEmpty() && !busy) SocytoEmptyState(
-                            "No updates published", "Published updates from your business will appear here."
-                        )
-                        updates.forEach { update -> SocytoUpdateCard(update) }
-                    }
-                    OutlinedButton(onClick = { selectedProject = null; updates = emptyList() }) {
-                        Text("Back to projects")
+                        SocytoPublicationTimeline(updates)
                     }
                 }
                 }
             }
-            if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            if (message.isNotEmpty()) Text(message, color = MaterialTheme.colorScheme.error)
+            if (busy) SocytoLoadingPanel()
+            if (message.isNotEmpty()) SocytoFeedback(
+                message = message,
+                isError = message.contains("failed", ignoreCase = true) ||
+                    message.contains("unable", ignoreCase = true) ||
+                    message.contains("error", ignoreCase = true),
+                onDismiss = { message = "" }
+            )
         }
     }
     }
