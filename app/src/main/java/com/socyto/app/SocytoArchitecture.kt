@@ -105,7 +105,7 @@ fun SocytoArchitecturalHero(
 }
 
 @Composable
-fun SocytoArchitectureProjectCard(project: ProjectSummary, onClick: () -> Unit) {
+fun SocytoArchitectureProjectCard(project: ProjectSummary, clientView: Boolean = false, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -152,7 +152,7 @@ fun SocytoArchitectureProjectCard(project: ProjectSummary, onClick: () -> Unit) 
                         style = MaterialTheme.typography.titleLarge,
                         maxLines = 2, overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface)
-                    Text("Open project workspace",
+                    Text(if (clientView) "View published project updates" else "Open project workspace",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
