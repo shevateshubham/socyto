@@ -202,13 +202,20 @@ private fun SocytoApp() {
                     })
                 }
             } else {
-                Text(when (val role = scope) {
-                    AccountScope.PlatformAdmin -> "Super Admin"
-                    is AccountScope.BusinessAdmin -> role.business.name
-                    AccountScope.Client -> "My projects"
-                    AccountScope.Unassigned -> "Account awaiting access"
-                    null -> "Loading account"
-                }, style = MaterialTheme.typography.headlineMedium)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("WORKSPACE", color = MaterialTheme.colorScheme.secondary,
+                            style = MaterialTheme.typography.labelSmall)
+                        Text(when (val role = scope) {
+                            AccountScope.PlatformAdmin -> "Super Admin"
+                            is AccountScope.BusinessAdmin -> role.business.name
+                            AccountScope.Client -> "My projects"
+                            AccountScope.Unassigned -> "Awaiting access"
+                            null -> "Loading account"
+                        }, style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
                 OutlinedButton(onClick = {
                     session = null
                     branding = null
@@ -221,6 +228,7 @@ private fun SocytoApp() {
                     updates = emptyList()
                     message = ""
                 }) { Text("Sign out") }
+                }
                 val authenticated = session!!
                 if (scope == AccountScope.Unassigned) {
                     Text("Signed in, but no firm or project access assigned. Ask your SOCYTO administrator to link your verified account.")
