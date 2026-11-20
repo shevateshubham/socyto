@@ -34,8 +34,7 @@ fun BusinessManagementPanel(
         }
     }
 
-    Text("Manage clients and sites", style = MaterialTheme.typography.titleLarge)
-    Text("Create client")
+    SocytoSectionHeader("New client", "Add a client to your business workspace")
     OutlinedTextField(
         value = clientName, onValueChange = { clientName = it },
         label = { Text("Client name") }, modifier = Modifier.fillMaxWidth(),
@@ -66,7 +65,7 @@ fun BusinessManagementPanel(
     ) { Text("Save client") }
 
     HorizontalDivider()
-    Text("Create site project", style = MaterialTheme.typography.titleMedium)
+    SocytoSectionHeader("New project", "Connect a project to an existing client")
     if (clients.isEmpty()) {
         Text("Create a client first, then assign the site to that client.")
     } else {
@@ -150,6 +149,7 @@ fun ProjectSiteOperations(
     var effort by remember(project.id) { mutableIntStateOf(2) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
+    var activeSection by remember(project.id) { mutableIntStateOf(0) }
 
     fun reloadReceipts() {
         api.async({ api.materialReceipts(session, project) }) { result ->
@@ -159,8 +159,23 @@ fun ProjectSiteOperations(
     }
     LaunchedEffect(project.id) { reloadReceipts() }
 
-    HorizontalDivider()
-    Text("Custom progress requirements", style = MaterialTheme.typography.titleMedium)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        FilterChip(
+            selected = activeSection == 0,
+            onClick = { activeSection = 0 },
+            label = { Text("Requirements") }
+        )
+        FilterChip(
+            selected = activeSection == 1,
+            onClick = { activeSection = 1 },
+            label = { Text("Materials") }
+        )
+    }
+    if (activeSection == 0) {
+    SocytoSectionHeader("Work requirements", "Private drafts until explicitly published")
     Text("Draft requirements are private until published through an approved update.")
     OutlinedTextField(requirementName, { requirementName = it },
         label = { Text("Requirement description") }, modifier = Modifier.fillMaxWidth())
@@ -199,8 +214,8 @@ fun ProjectSiteOperations(
         }
     ) { Text("Save requirement") }
 
-    HorizontalDivider()
-    Text("Material receipts", style = MaterialTheme.typography.titleMedium)
+    } else {
+    SocytoSectionHeader("Material expenditure", "Calculated from actual received goods")
     val totalExpenditure = receiptList.sumOf { it.amount }
     Text("Expenditure from received materials: ₹" + String.format("%.2f", totalExpenditure))
     receiptList.forEach { receipt ->
@@ -240,6 +255,7 @@ fun ProjectSiteOperations(
             }
         }
     ) { Text("Save material receipt") }
+    }
     if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
     if (message.isNotBlank()) Text(message)
 }
