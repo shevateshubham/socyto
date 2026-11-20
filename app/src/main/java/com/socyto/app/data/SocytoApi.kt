@@ -428,9 +428,18 @@ class SocytoApi {
             }
             val status = connection.responseCode
             if (status !in 200..299) {
-                // Never leak credentials, raw server details or private records to the UI.
-                throw IllegalStateException(if (status == 401 || status == 403) "Access denied. Check account permissions."
-                    else "Service request failed (HTTP $status).")
+                // Keep credentials and raw server responses out of the user interface.
+                val authLogin = path.startsWith("/auth/v1/token?grant_type=password")
+                val message = when {
+                    authLogin && status == 400 ->
+                        "Email or password is incorrect. Check the full email and paste the exact test password."
+                    authLogin && status == 429 ->
+                        "Too many sign-in attempts. Please try again later."
+                    status == 401 || status == 403 ->
+                        "Access denied. Check account permissions."
+                    else -> "Service request failed (HTTP $status)."
+                }
+                throw IllegalStateException(message)
             }
             val text = connection.inputStream.bufferedReader().use { it.readText() }
             return when {
