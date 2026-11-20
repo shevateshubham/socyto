@@ -1,0 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap');
+:root {
+  /* Overlay layers */
+  --z-overlay: 400;
+
+  --z-spotlight: 1000; /* Tutorial spotlights/guided help */
+
+  /* System layers */
+  --z-critical: 2000; /* Critical system notifications */
+
+  /* spacing */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+  --spacing-20: 5rem;
+}
+:root {
+  --background: #F7F5F0;
+  --foreground: #1F251F;
+  --surface: #F0EFE9;
+  --surface-foreground: #253128;
+  --sidebar: #213B2B;
+  --sidebar-foreground: #F6F2E9;
+  --card: #FFFEFB;
+  --card-foreground: #24312A;
+  --popup: #FFFEFB;
+  --popup-foreground: #26322B;
+  --primary: #2E4A2B;
+  --primary-foreground: #FFFEF8;
+  --secondary: #6B8E49;
+  --secondary-foreground: #FFFFFF;
+  --accent: #D4AF7C;
+  --accent-foreground: #2F2A1F;
+  --muted: #E9EBE2;
+  --muted-foreground: #6B746B;
+  --success: #467B54;
+  --success-foreground: #FFFFFF;
+  --error: #B34B3F;
+  --error-foreground: #FFFFFF;
+  --warning: #C08A42;
+  --warning-foreground: #281E13;
+  --info: #3D7683;
+  --info-foreground: #FFFFFF;
+  --info-hover: #346572;
+  --info-active: #2A5461;
+  --border: #DCE1D5;
+  --font-family-base: 'DM Sans', system-ui, sans-serif;
+  --font-family-display: 'Newsreader', Georgia, serif;
+  --font-family-monospace: ui-monospace, SFMono-Regular, monospace;
+  --font-family-cursive: 'Newsreader', Georgia, serif;
+  --shadow: 0 6px 24px rgba(26, 48, 29, .035);
+  --shadow-md: 0 14px 35px rgba(26, 48, 29, .07);
+  --shadow-lg: 0 20px 60px rgba(26, 48, 29, .12);
+  --shadow-focus: 0 0 0 3px rgba(107, 142, 73, .25);
+  --radius-sm: 8px;
+  --radius: 13px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-full: 999px;
+  --animation-duration-fast: .12s;
+  --animation-duration-normal: .22s;
+  --animation-duration-slow: .4s;
+  --chart-color-1: #2E4A2B;
+  --chart-color-2: #6B8E49;
+  --chart-color-3: #D4AF7C;
+  --chart-color-4: #91A9A0;
+  --chart-color-5: #566A5A;
+}
+.dark {}
