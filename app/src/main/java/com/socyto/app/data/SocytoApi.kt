@@ -66,6 +66,18 @@ class SocytoApi {
             JSONObject().put("email", email.trim()).put("password", password))
     }
 
+    /** A verified new account may redeem an expiring, single-use administrator invitation. */
+    fun claimPlatformAdmin(session: Session, invitationCode: String) {
+        require(Regex("^[a-f0-9]{64}$").matches(invitationCode.trim())) {
+            "Enter the 64-character one-time activation code."
+        }
+        val response = request("POST", "/rest/v1/rpc/claim_platform_admin_bootstrap",
+            session, JSONObject().put("one_time_code", invitationCode.trim()))
+        check(response.optBoolean("_value", false)) {
+            "Super Admin activation was not confirmed."
+        }
+    }
+
     /** Only a platform administrator can register a new firm. */
     fun registerFirm(
         session: Session, businessName: String, administratorEmail: String, businessType: String
