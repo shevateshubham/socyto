@@ -345,7 +345,7 @@ class SocytoApi {
             val required = requireNotNull(requirement.requiredQuantity) {
                 "Quantity requirement is missing a required quantity."
             }
-            require(required.isFinite() && required > 0 && completedQuantity <= required) {
+            require(ProgressMath.isValidQuantityUpdate(required, completedQuantity)) {
                 "Completed quantity must be between zero and the required quantity."
             }
         }
