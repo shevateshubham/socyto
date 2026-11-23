@@ -46,8 +46,9 @@ sealed class AccountScope {
 class SocytoApi {
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
-    val isConfigured: Boolean get() = BuildConfig.SUPABASE_URL.startsWith("https://") &&
-        BuildConfig.SUPABASE_PUBLISHABLE_KEY.isNotBlank()
+    val isConfigured: Boolean get() =
+        BuildConfig.SUPABASE_URL.startsWith("https://") &&
+        BuildConfig.SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_")
 
     fun <T> async(operation: () -> T, completion: (Result<T>) -> Unit) {
         executor.execute {
@@ -336,8 +337,18 @@ class SocytoApi {
         session: Session, project: ProjectSummary, requirement: RequirementSummary,
         completed: Boolean, completedQuantity: Double
     ) {
-        require(completedQuantity.isFinite() && completedQuantity >= 0)
+        require(completedQuantity.isFinite() && completedQuantity >= 0) {
+            "Completed quantity must be a nonnegative finite number."
+        }
         require(requirement.type == "checklist" || requirement.type == "quantity")
+        if (requirement.type == "quantity") {
+            val required = requireNotNull(requirement.requiredQuantity) {
+                "Quantity requirement is missing a required quantity."
+            }
+            require(required.isFinite() && required > 0 && completedQuantity <= required) {
+                "Completed quantity must be between zero and the required quantity."
+            }
+        }
         val body = JSONObject()
         if (requirement.type == "checklist") body.put("is_completed", completed)
         else body.put("completed_quantity", completedQuantity)
@@ -475,7 +486,7 @@ class SocytoApi {
                 val message = when {
                     onboardingError.isNotBlank() -> onboardingError
                     authLogin && status == 400 ->
-                        "Email or password is incorrect. Check the full email and paste the exact test password."
+                        "Email or password is incorrect. Check your credentials and try again."
                     authLogin && status == 429 ->
                         "Too many sign-in attempts. Please try again later."
                     status == 401 || status == 403 ->
