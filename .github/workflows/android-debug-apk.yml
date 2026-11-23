@@ -1,7 +1,7 @@
 name: Android Debug APK
 on:
   push:
-    branches: [main]
+    branches: [main, docs/agent-development-foundation]
   pull_request:
     branches: [main]
   workflow_dispatch:
