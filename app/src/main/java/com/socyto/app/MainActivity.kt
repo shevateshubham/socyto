@@ -76,7 +76,6 @@ private fun SocytoApp() {
     var message by remember { mutableStateOf("") }
     var showManagement by remember { mutableStateOf(false) }
     var showBusinessRegistration by remember { mutableStateOf(false) }
-    var bootstrapCode by remember { mutableStateOf("") }
     var coAdminCode by remember { mutableStateOf("") }
     var projectSection by remember { mutableIntStateOf(0) }
     var workspaceTab by remember { mutableStateOf("overview") }
@@ -313,55 +312,41 @@ private fun SocytoApp() {
                 }
                 val authenticated = session!!
                 if (scope == AccountScope.Unassigned) {
-                    Text("Your account is verified, but no role has been assigned yet. To set up SOCYTO as the platform owner, enter your private one-time activation code below.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "Your account is verified, but no firm, client project or administrator role has been assigned yet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     SocytoStepCard(
-                        "One-time administrator activation",
-                        "Activate Super Admin",
-                        "Activation codes are sent only to pre-approved platform owners after email or mobile verification. Signing up alone never grants administrator permissions."
+                        "PRIMARY PLATFORM OWNER",
+                        "Activate Primary Super Admin",
+                        "Only the permanently pre-approved, email-verified owner can activate this role. No extra email, SMS or activation code is required. Activation happens only when you tap below."
                     ) {
-                        OutlinedTextField(
-                            bootstrapCode, { bootstrapCode = it.trim() },
-                            label = { Text("One-time activation code") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            visualTransformation = PasswordVisualTransformation()
-                        )
                         Button(
-                            enabled = !busy && Regex("^[a-f0-9]{64}$").matches(bootstrapCode),
+                            enabled = !busy,
                             onClick = {
                                 busy = true
                                 message = ""
                                 api.async({
-                                    api.claimPlatformAdmin(authenticated, bootstrapCode)
+                                    api.activateVerifiedPrimaryOwner(authenticated)
                                     api.accountScope(authenticated)
                                 }) { result ->
                                     busy = false
                                     result.onSuccess { updatedScope ->
-                                        bootstrapCode = ""
-                                        scope = updatedScope
-                                        loadWorkspace(authenticated, updatedScope)
+                                        if (updatedScope == AccountScope.PlatformAdmin) {
+                                            scope = updatedScope
+                                            loadWorkspace(authenticated, updatedScope)
+                                        } else {
+                                            message = "Activation could not be confirmed. Please check access again."
+                                        }
                                     }.onFailure {
-                                        message = it.message ?: "Unable to activate Super Admin."
+                                        message = it.message ?: "Unable to activate Primary Super Admin."
                                     }
                                 }
-                            }
-                        ) { Text("Activate using invitation") }
+                            },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        ) { Text(if (busy) "Checking verified identity…" else "Activate Primary Super Admin") }
                     }
-                    OutlinedButton(
-                        enabled = !busy,
-                        onClick = {
-                            busy = true
-                            message = ""
-                            api.async({ api.requestPlatformActivationCode(authenticated) }) { result ->
-                                busy = false
-                                result.onSuccess { message = it }
-                                    .onFailure {
-                                        message = it.message ?: "Unable to request activation code."
-                                    }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    ) { Text("Send activation code to verified email or mobile") }
                     SocytoStepCard(
                         "CO-ADMIN INVITATION",
                         "Activate Co-Admin access",
