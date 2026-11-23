@@ -465,7 +465,15 @@ class SocytoApi {
             if (status !in 200..299) {
                 // Keep credentials and raw server responses out of the user interface.
                 val authLogin = path.startsWith("/auth/v1/token?grant_type=password")
+                val onboardingError = if (path == "/functions/v1/client-onboarding") {
+                    runCatching {
+                        val responseText = connection.errorStream
+                            ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                        JSONObject(responseText).optString("error").take(220)
+                    }.getOrDefault("")
+                } else ""
                 val message = when {
+                    onboardingError.isNotBlank() -> onboardingError
                     authLogin && status == 400 ->
                         "Email or password is incorrect. Check the full email and paste the exact test password."
                     authLogin && status == 429 ->
