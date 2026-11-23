@@ -73,7 +73,7 @@ fun BusinessManagementPanel(
     )
     Button(
         enabled = !loading && ProjectInputRules.validName(clientName) &&
-            Regex("^\\+[1-9][0-9]{7,14}$").matches(clientPhone.trim()),
+            AccountIdentifiers.validPhone(clientPhone),
         onClick = {
             loading = true
             message = ""
