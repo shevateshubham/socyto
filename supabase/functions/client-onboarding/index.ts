@@ -24,7 +24,7 @@ function newAccountCode(prefix: "F" | "C") {
   return prefix + (random[0] % 1_000_000_000).toString().padStart(9, "0");
 }
 function validPhone(value: unknown): value is string {
-  return typeof value === "string" && /^\\+[1-9][0-9]{7,14}$/.test(value);
+  return typeof value === "string" && /^[+][1-9][0-9]{7,14}$/.test(value);
 }
 function validName(value: unknown): value is string {
   return typeof value === "string" && value.trim().length >= 2 && value.trim().length <= 80;
