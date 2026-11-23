@@ -7,7 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.socyto.app.data.*
 
-/** Real firm onboarding. Requires Super Admin role enforced by database RPC. */
+/** Super Admin creates a working firm account from just name and phone. */
 @Composable
 fun RegisterBusinessForm(
     session: Session,
@@ -15,54 +15,41 @@ fun RegisterBusinessForm(
     onRegistered: () -> Unit
 ) {
     var name by remember { mutableStateOf("") }
-    var adminEmail by remember { mutableStateOf("") }
-    var businessType by remember { mutableStateOf("interior_design") }
+    var phone by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
-
-    HorizontalDivider()
-    Text("Register new business", style = MaterialTheme.typography.titleLarge)
-    Text(
-        "Step 1: Ask the firm administrator to create a SOCYTO account using their own email, and verify it. " +
-            "Step 2: Sign back in as Super Admin and register the firm with that verified email. " +
-            "Step 3: Activate the new firm before its administrator signs in."
-    )
-    OutlinedTextField(name, { name = it }, label = { Text("Legal / business name") },
-        modifier = Modifier.fillMaxWidth(), singleLine = true)
-    OutlinedTextField(adminEmail, { adminEmail = it },
-        label = { Text("Verified Firm Admin email") },
-        modifier = Modifier.fillMaxWidth(), singleLine = true)
-    Text("Business type")
-    listOf(
-        "interior_design" to "Interior design",
-        "architecture" to "Architecture",
-        "construction" to "Construction contractor"
-    ).forEach { (value, label) ->
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RadioButton(selected = businessType == value, onClick = { businessType = value })
-            Text(label, modifier = Modifier.padding(top = 12.dp))
+    var credentials by remember { mutableStateOf<ClientTemporaryCredentials?>(null) }
+    if (credentials != null) {
+        SocytoOneTimeCredentials(credentials!!, accountLabel = "FIRM") {
+            credentials = null
+            onRegistered()
         }
+        return
     }
+    HorizontalDivider()
+    Text("Add a firm", style = MaterialTheme.typography.titleLarge)
+    Text("Enter the firm name and mobile number. SOCYTO securely issues a unique F-prefixed login ID and a one-time temporary password. The firm changes its password on first sign-in.")
+    OutlinedTextField(name, { name = it }, label = { Text("Firm / business name") },
+        modifier = Modifier.fillMaxWidth(), singleLine = true)
+    OutlinedTextField(phone, { phone = it }, label = { Text("Mobile number with country code (+91...)") },
+        modifier = Modifier.fillMaxWidth(), singleLine = true)
     Button(
         onClick = {
             saving = true
             message = ""
-            api.async({
-                api.registerFirm(session, name, adminEmail, businessType)
-            }) { result ->
+            api.async({ api.provisionFirmAccount(session, name, phone.trim()) }) { result ->
                 saving = false
                 result.onSuccess {
-                    message = "Business registered. Review its pending account status before activation."
+                    credentials = it
                     name = ""
-                    adminEmail = ""
-                    onRegistered()
-                }.onFailure { message = it.message ?: "Business registration failed." }
+                    phone = ""
+                }.onFailure { message = it.message ?: "Unable to create firm account." }
             }
         },
-        enabled = !saving && name.trim().length in 2..80 &&
-            ProjectInputRules.validEmail(adminEmail),
+        enabled = !saving && ProjectInputRules.validName(name) &&
+            Regex("^\\+[1-9][0-9]{7,14}$").matches(phone.trim()),
         modifier = Modifier.fillMaxWidth()
-    ) { Text("Register firm") }
+    ) { Text("Create firm & generate credentials") }
     if (saving) LinearProgressIndicator(Modifier.fillMaxWidth())
-    if (message.isNotBlank()) Text(message)
+    if (message.isNotBlank()) SocytoFeedback(message, isError = true, onDismiss = { message = "" })
 }
