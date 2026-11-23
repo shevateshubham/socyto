@@ -88,6 +88,14 @@ fun SocytoOneTimeCredentials(
                 Spacer(Modifier.width(8.dp))
                 Text("Copy temporary password")
             }
+            if (credentials.verificationRequired) {
+                SocytoPrivacyNotice(
+                    if (credentials.verificationRequested)
+                        "Email verification was requested. The account owner must confirm their email before signing in. They can resend confirmation from the SOCYTO login screen."
+                    else
+                        "Email confirmation could not be requested automatically. The account owner must use Resend verification email on the login screen before signing in."
+                )
+            }
             SocytoPrivacyNotice(
                 "The temporary password will not be shown again after closing this screen. " +
                     "The account owner must create a personal password at first login."

@@ -18,6 +18,14 @@ class AccountIdentifiersTest {
             AccountIdentifiers.authenticationEmail(" ADMIN@Example.org "))
     }
 
+    @Test fun firmAndClientMayHaveSingleEmailOrMobileContact() {
+        assertTrue(AccountIdentifiers.validEmail("client@practice.in"))
+        assertTrue(AccountIdentifiers.validPhone("+919876543210"))
+        assertFalse(AccountIdentifiers.validEmail("+919876543210"))
+        assertFalse(AccountIdentifiers.validPhone("client@practice.in"))
+        assertFalse(AccountIdentifiers.validIdentifier(""))
+    }
+
     @Test fun unifiedInputValidation() {
         assertTrue(AccountIdentifiers.validEmail("admin@example.org"))
         assertTrue(AccountIdentifiers.validIdentifier("admin@example.org"))
@@ -34,7 +42,10 @@ class AccountIdentifiersTest {
         assertFalse(AccountIdentifiers.isAccountCode("X123456789"))
         assertFalse(AccountIdentifiers.isAccountCode("F1234567890"))
         assertTrue(AccountIdentifiers.validPhone("+919876543210"))
-        assertFalse(AccountIdentifiers.validPhone("9876543210"))
+        assertTrue(AccountIdentifiers.validPhone("9876543210"))
+        assertEquals("+919876543210", AccountIdentifiers.normalizedPhone("9876543210"))
+        assertEquals("+919876543210", AccountIdentifiers.normalizedContact("9876543210"))
+        assertFalse(AccountIdentifiers.validPhone("1234567890"))
         assertFalse(AccountIdentifiers.validPhone("+001234567890"))
     }
 }

@@ -8,7 +8,7 @@ const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const phonePattern = /^\+[1-9][0-9]{7,14}$/;
 const headers = { "Content-Type": "application/json", "Cache-Control": "no-store" };
 const invalid = () => new Response(
-  JSON.stringify({ error: "Invalid mobile number or password." }),
+  JSON.stringify({ error: "Invalid login credentials." }),
   { status: 401, headers }
 );
 Deno.serve(async (req: Request) => {
@@ -24,10 +24,12 @@ Deno.serve(async (req: Request) => {
     body = await req.json();
   } catch { return invalid(); }
 
-  const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+  const identifier = typeof body.identifier === "string" ? body.identifier.trim()
+    : typeof body.phone === "string" ? body.phone.trim() : "";
+  const codePattern = /^[FC][0-9]{9}$/i;
   const password = body.password;
-  if (!phonePattern.test(phone) || typeof password !== "string" ||
-      password.length < 1 || password.length > 128) return invalid();
+  if (!(phonePattern.test(identifier) || codePattern.test(identifier)) ||
+      typeof password !== "string" || password.length < 1 || password.length > 128) return invalid();
 
   const data = createClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false }
@@ -35,27 +37,27 @@ Deno.serve(async (req: Request) => {
   const auth = createClient(url, anonKey, {
     auth: { autoRefreshToken: false, persistSession: false }
   });
-  // Managed firm/client accounts use internal synthetic Auth emails, but only
-  // the server can resolve their E.164 phone to the account ID. The public app
-  // never queries privileged tables to find an identity.
+  const phone = phonePattern.test(identifier) ? identifier : null;
+  const key = identifier.toUpperCase();
   const [firm, client] = await Promise.all([
-    data.from("businesses").select("firm_code")
-      .eq("contact_phone", phone).maybeSingle(),
-    data.from("clients").select("client_code")
-      .eq("client_phone", phone).maybeSingle()
+    (phone ? data.from("businesses").select("firm_code,contact_email").eq("contact_phone", phone)
+      : data.from("businesses").select("firm_code,contact_email").eq("firm_code", key))
+      .maybeSingle(),
+    (phone ? data.from("clients").select("client_code,client_email").eq("client_phone", phone)
+      : data.from("clients").select("client_code,client_email").eq("client_code", key))
+      .maybeSingle()
   ]);
   if (firm.error || client.error) {
     return new Response(JSON.stringify({ error: "Sign-in is temporarily unavailable." }),
       { status: 503, headers });
   }
-  if (firm.data?.firm_code && client.data?.client_code) {
-    // Ambiguous phone identities must never log in to the wrong tenant.
-    return invalid();
-  }
+  if (firm.data && client.data) return invalid();
   const code = firm.data?.firm_code ?? client.data?.client_code;
-  const credentials = code
-    ? { email: String(code).toLowerCase() + "@login.socyto.invalid", password }
-    : { phone, password };
+  const actualEmail = firm.data?.contact_email ?? client.data?.client_email;
+  const credentials = code ? {
+    email: actualEmail ?? String(code).toLowerCase() + "@login.socyto.invalid", password
+  } : phone ? { phone, password } : null;
+  if (!credentials) return invalid();
   const { data: session, error } = await auth.auth.signInWithPassword(credentials);
   if (error || !session.session || !session.user) return invalid();
 

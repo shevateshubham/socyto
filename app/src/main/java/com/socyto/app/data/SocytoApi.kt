@@ -34,10 +34,16 @@ data class RequirementSummary(
 )
 data class MaterialReceiptSummary(val id: String, val materialName: String, val quantity: Double, val unit: String, val amount: Double)
 data class PublishedUpdate(val progress: String, val note: String, val publishedAt: String)
-data class ClientTemporaryCredentials(val email: String, val temporaryPassword: String)
+data class ClientTemporaryCredentials(
+    val email: String,
+    val temporaryPassword: String,
+    val verificationRequired: Boolean = false,
+    val verificationRequested: Boolean = false
+)
 
 sealed class AccountScope {
     data object PlatformAdmin : AccountScope()
+    data object CoAdmin : AccountScope()
     data class BusinessAdmin(val business: BusinessSummary) : AccountScope()
     data object Client : AccountScope()
     data object Unassigned : AccountScope()
@@ -76,9 +82,9 @@ class SocytoApi {
 
     /** Begin first-time Super Admin registration using either email or phone. */
     fun signUpWithIdentifier(identifier: String, password: String): Boolean {
-        val value = identifier.trim()
+        val value = AccountIdentifiers.normalizedContact(identifier)
         require(AccountIdentifiers.validEmail(value) || AccountIdentifiers.validPhone(value)) {
-            "Enter an email address or mobile number including the country code."
+            "Enter a valid email address or mobile number."
         }
         require(password.length >= 8) { "Choose a password with at least eight characters." }
         val payload = JSONObject().put("password", password)
@@ -93,8 +99,48 @@ class SocytoApi {
         require(AccountIdentifiers.validPhone(phone))
         require(Regex("^[0-9]{6,8}$").matches(oneTimeCode.trim()))
         request("POST", "/auth/v1/verify", null,
-            JSONObject().put("phone", phone.trim())
+            JSONObject().put("phone", AccountIdentifiers.normalizedPhone(phone))
                 .put("token", oneTimeCode.trim()).put("type", "sms"))
+    }
+
+    /** Explicit, verified-email Primary Owner activation; no second email service. */
+    fun activateVerifiedPrimaryOwner(session: Session) {
+        val result = request("POST", "/functions/v1/platform-owner-activation",
+            session, JSONObject())
+        check(result.optBoolean("activated", false)) {
+            "Primary Owner activation was not confirmed."
+        }
+    }
+
+    data class CoAdminInvite(val code: String, val expiresAt: String)
+
+    fun inviteCoAdmin(session: Session, contact: String): CoAdminInvite {
+        require(AccountIdentifiers.validEmail(contact) || AccountIdentifiers.validPhone(contact))
+        val result = request("POST", "/functions/v1/coadmin-management", session,
+            JSONObject().put("action", "invite")
+                .put("contact", AccountIdentifiers.normalizedContact(contact)))
+        return CoAdminInvite(result.getString("one_time_code"), result.getString("expires_at"))
+    }
+
+    fun listCoAdmins(session: Session): JSONObject =
+        request("POST", "/functions/v1/coadmin-management", session,
+            JSONObject().put("action", "list"))
+
+    fun revokeCoAdmin(session: Session, userId: String) {
+        request("POST", "/functions/v1/coadmin-management", session,
+            JSONObject().put("action", "revoke").put("user_id", userId))
+    }
+
+    fun cancelCoAdminInvitation(session: Session, invitationId: String) {
+        request("POST", "/functions/v1/coadmin-management", session,
+            JSONObject().put("action", "cancel_invitation").put("invitation_id", invitationId))
+    }
+
+    fun claimCoAdminInvitation(session: Session, code: String) {
+        require(Regex("^[a-f0-9]{64}$").matches(code.trim()))
+        val result = request("POST", "/rest/v1/rpc/claim_platform_coadmin_invitation",
+            session, JSONObject().put("one_time_code", code.trim()))
+        check(result.optBoolean("_value", false)) { "Co-Admin activation was not confirmed." }
     }
 
     /** A verified new account may redeem an expiring, single-use administrator invitation. */
@@ -110,26 +156,30 @@ class SocytoApi {
     }
 
     /** Real server-side firm identity provisioning: no app-generated credentials. */
-    fun provisionFirmAccount(session: Session, name: String, phone: String): ClientTemporaryCredentials {
-        require(ProjectInputRules.validName(name) && AccountIdentifiers.validPhone(phone))
+    fun provisionFirmAccount(session: Session, name: String, contact: String): ClientTemporaryCredentials {
+        require(ProjectInputRules.validName(name) && (AccountIdentifiers.validPhone(contact) || AccountIdentifiers.validEmail(contact)))
         val result = request("POST", "/functions/v1/client-onboarding", session,
             JSONObject().put("action", "provision_firm")
-                .put("firm_name", name.trim()).put("phone", phone.trim()))
+                .put("firm_name", name.trim()).put("contact", AccountIdentifiers.normalizedContact(contact)))
         return ClientTemporaryCredentials(
-            result.getString("login_id"), result.getString("temporary_password"))
+            result.getString("login_id"), result.getString("temporary_password"),
+            result.optBoolean("verification_required"),
+            result.optBoolean("verification_requested"))
     }
 
     /** A firm administrator provisions a client without requiring a personal email address. */
     fun provisionClientAccount(
-        session: Session, businessId: String, name: String, phone: String
+        session: Session, businessId: String, name: String, contact: String
     ): Pair<ClientSummary, ClientTemporaryCredentials> {
-        require(ProjectInputRules.validName(name) && AccountIdentifiers.validPhone(phone))
+        require(ProjectInputRules.validName(name) && (AccountIdentifiers.validPhone(contact) || AccountIdentifiers.validEmail(contact)))
         val result = request("POST", "/functions/v1/client-onboarding", session,
             JSONObject().put("action", "provision_client_account")
                 .put("business_id", businessId)
-                .put("client_name", name.trim()).put("phone", phone.trim()))
+                .put("client_name", name.trim()).put("contact", AccountIdentifiers.normalizedContact(contact)))
         return ClientSummary(result.getString("record_id"), name.trim()) to
-            ClientTemporaryCredentials(result.getString("login_id"), result.getString("temporary_password"))
+            ClientTemporaryCredentials(result.getString("login_id"), result.getString("temporary_password"),
+            result.optBoolean("verification_required"),
+            result.optBoolean("verification_requested"))
     }
 
     /** Only a platform administrator can register a new firm. */
@@ -184,7 +234,7 @@ class SocytoApi {
     fun sendRecoveryOtp(phone: String) {
         require(AccountIdentifiers.validPhone(phone))
         request("POST", "/auth/v1/otp", null,
-            JSONObject().put("phone", phone.trim()).put("create_user", false)
+            JSONObject().put("phone", AccountIdentifiers.normalizedPhone(phone)).put("create_user", false)
                 .put("channel", "sms"))
     }
 
@@ -195,7 +245,7 @@ class SocytoApi {
         require(newPassword.length in 12..128 && newPassword.any { it.isLetter() } &&
             newPassword.any { it.isDigit() })
         val verified = request("POST", "/auth/v1/verify", null,
-            JSONObject().put("phone", phone.trim())
+            JSONObject().put("phone", AccountIdentifiers.normalizedPhone(phone))
                 .put("token", otp.trim()).put("type", "sms"))
         val user = verified.getJSONObject("user")
         val session = Session(
@@ -214,15 +264,16 @@ class SocytoApi {
 
     /** One unified sign-in field: email, phone, or generated F/C code. */
     fun signIn(identifier: String, password: String): Session {
-        val value = identifier.trim()
+        val value = AccountIdentifiers.normalizedContact(identifier)
         require(AccountIdentifiers.validIdentifier(value)) {
             "Enter a valid email, +country-code mobile number, or firm/client ID."
         }
-        val response = if (AccountIdentifiers.validPhone(value)) {
-            // Password validation stays inside Supabase Auth; this service
-            // resolves administrator phones and managed firm/client accounts.
+        val response = if (AccountIdentifiers.validPhone(value) ||
+                AccountIdentifiers.isAccountCode(value)) {
+            // The backend resolves F/C codes and mobile numbers to their real
+            // Auth identities; the identifier alone never authorizes access.
             request("POST", "/functions/v1/account-login", null,
-                JSONObject().put("phone", value).put("password", password))
+                JSONObject().put("identifier", value).put("password", password))
         } else {
             request("POST", "/auth/v1/token?grant_type=password", null,
                 JSONObject().put("email", AccountIdentifiers.authenticationEmail(value))
@@ -245,6 +296,9 @@ class SocytoApi {
         val isPlatformAdmin = getRows("platform_administrators", "user_id",
             "user_id=eq.${encode(session.userId)}", session).length() > 0
         if (isPlatformAdmin) return AccountScope.PlatformAdmin
+        val coAdmins = getRows("platform_coadmins", "user_id",
+            "user_id=eq.${encode(session.userId)}&active=eq.true", session)
+        if (coAdmins.length() > 0) return AccountScope.CoAdmin
         val memberships = getRows("business_members", "business_id",
             "user_id=eq.${encode(session.userId)}&member_role=eq.business_admin", session)
         if (memberships.length() > 0) {
@@ -587,14 +641,16 @@ class SocytoApi {
             if (status !in 200..299) {
                 // Keep credentials and raw server responses out of the user interface.
                 val authLogin = path.startsWith("/auth/v1/token?grant_type=password")
-                val authErrorCode = if (authLogin) {
+                val authErrorCode = if (authLogin || path == "/auth/v1/signup") {
                     runCatching {
                         val raw = connection.errorStream
                             ?.bufferedReader()?.use { it.readText() }.orEmpty()
                         JSONObject(raw).optString("error_code")
                     }.getOrDefault("")
                 } else ""
-                val onboardingError = if (path == "/functions/v1/client-onboarding") {
+                val onboardingError = if (path == "/functions/v1/client-onboarding" ||
+                    path == "/functions/v1/platform-owner-activation" ||
+                    path == "/functions/v1/coadmin-management") {
                     runCatching {
                         val responseText = connection.errorStream
                             ?.bufferedReader()?.use { it.readText() }.orEmpty()
@@ -603,6 +659,10 @@ class SocytoApi {
                 } else ""
                 val message = when {
                     onboardingError.isNotBlank() -> onboardingError
+                    path == "/auth/v1/signup" && authErrorCode == "phone_provider_disabled" ->
+                        "Mobile registration is not available yet. SMS authentication must be enabled by the SOCYTO administrator. Use email registration for now."
+                    path == "/auth/v1/signup" && authErrorCode == "over_sms_send_rate_limit" ->
+                        "Too many SMS requests. Please try again later."
                     authLogin && authErrorCode == "email_not_confirmed" ->
                         "Email not verified. Open the latest confirmation email, or resend it below."
                     path == "/auth/v1/resend" && status == 429 ->

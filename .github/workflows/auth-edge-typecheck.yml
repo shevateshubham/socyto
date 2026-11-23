@@ -1,0 +1,27 @@
+name: SOCYTO Auth Edge Function Typecheck
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'supabase/functions/**'
+      - '.github/workflows/auth-edge-typecheck.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  edge-typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check all authentication Edge Functions
+        run: |
+          deno check supabase/functions/account-login/index.ts
+          deno check supabase/functions/client-onboarding/index.ts
+          deno check supabase/functions/platform-owner-activation/index.ts
+          deno check supabase/functions/coadmin-management/index.ts

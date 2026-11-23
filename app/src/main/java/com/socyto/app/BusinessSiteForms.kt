@@ -28,7 +28,7 @@ fun BusinessManagementPanel(
 ) {
     var clients by remember(business.id) { mutableStateOf(emptyList<ClientSummary>()) }
     var clientName by remember(business.id) { mutableStateOf("") }
-    var clientPhone by remember(business.id) { mutableStateOf("") }
+    var clientContact by remember(business.id) { mutableStateOf("") }
     var projectName by remember(business.id) { mutableStateOf("") }
     var projectType by remember(business.id) { mutableStateOf("") }
     var projectLocation by remember(business.id) { mutableStateOf("") }
@@ -70,27 +70,26 @@ fun BusinessManagementPanel(
         singleLine = true
     )
     OutlinedTextField(
-        value = clientPhone, onValueChange = { clientPhone = it },
-        label = { Text("Registered mobile number") }, modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("+91…") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-        isError = clientPhone.isNotBlank() && !AccountIdentifiers.validPhone(clientPhone),
-        supportingText = { Text("Use country code; this number is needed for secure recovery") },
+        value = clientContact, onValueChange = { clientContact = it },
+        label = { Text("Mobile or email") }, modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+        isError = clientContact.isNotBlank() && !AccountIdentifiers.validPhone(clientContact) && !AccountIdentifiers.validEmail(clientContact),
+        supportingText = { Text("Email verification or mobile OTP protects account recovery") },
         singleLine = true
     )
     Button(
         enabled = !loading && ProjectInputRules.validName(clientName) &&
-            AccountIdentifiers.validPhone(clientPhone),
+            (AccountIdentifiers.validPhone(clientContact) || AccountIdentifiers.validEmail(clientContact)),
         onClick = {
             loading = true
             message = ""
-            api.async({ api.provisionClientAccount(session, business.id, clientName, clientPhone.trim()) }) { result ->
+            api.async({ api.provisionClientAccount(session, business.id, clientName, clientContact.trim()) }) { result ->
                 loading = false
                 result.onSuccess { (client, generated) ->
                     clients = clients + client
                     selectedClientId = client.id
                     clientName = ""
-                    clientPhone = ""
+                    clientContact = ""
                     oneTimeCredentials = generated
                 }.onFailure { message = it.message ?: "Unable to create client account." }
             }
