@@ -78,6 +78,29 @@ class SocytoApi {
         }
     }
 
+    /** Real server-side firm identity provisioning: no app-generated credentials. */
+    fun provisionFirmAccount(session: Session, name: String, phone: String): ClientTemporaryCredentials {
+        require(ProjectInputRules.validName(name) && Regex("^\\+[1-9][0-9]{7,14}$").matches(phone.trim()))
+        val result = request("POST", "/functions/v1/client-onboarding", session,
+            JSONObject().put("action", "provision_firm")
+                .put("firm_name", name.trim()).put("phone", phone.trim()))
+        return ClientTemporaryCredentials(
+            result.getString("login_id"), result.getString("temporary_password"))
+    }
+
+    /** A firm administrator provisions a client without requiring a personal email address. */
+    fun provisionClientAccount(
+        session: Session, businessId: String, name: String, phone: String
+    ): Pair<ClientSummary, ClientTemporaryCredentials> {
+        require(ProjectInputRules.validName(name) && Regex("^\\+[1-9][0-9]{7,14}$").matches(phone.trim()))
+        val result = request("POST", "/functions/v1/client-onboarding", session,
+            JSONObject().put("action", "provision_client_account")
+                .put("business_id", businessId)
+                .put("client_name", name.trim()).put("phone", phone.trim()))
+        return ClientSummary(result.getString("record_id"), name.trim()) to
+            ClientTemporaryCredentials(result.getString("login_id"), result.getString("temporary_password"))
+    }
+
     /** Only a platform administrator can register a new firm. */
     fun registerFirm(
         session: Session, businessName: String, administratorEmail: String, businessType: String
@@ -127,8 +150,12 @@ class SocytoApi {
     }
 
     fun signIn(email: String, password: String): Session {
+        val login = email.trim().uppercase(java.util.Locale.ROOT)
+        val authEmail = if (Regex("^[FC][0-9]{9}$").matches(login)) {
+            login.lowercase(java.util.Locale.ROOT) + "@login.socyto.invalid"
+        } else email.trim().lowercase(java.util.Locale.ROOT)
         val response = request("POST", "/auth/v1/token?grant_type=password", null,
-            JSONObject().put("email", email).put("password", password))
+            JSONObject().put("email", authEmail).put("password", password))
         return Session(
             accessToken = response.getString("access_token"),
             userId = response.getJSONObject("user").getString("id"),
