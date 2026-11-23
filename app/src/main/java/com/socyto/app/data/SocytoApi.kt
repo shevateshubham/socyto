@@ -66,25 +66,15 @@ class SocytoApi {
             JSONObject().put("email", email.trim()).put("password", password))
     }
 
-    /** Sends an explicit one-time owner activation request to the approved, verified email. */
-    fun requestPlatformAdminCode(session: Session) {
+    /** A verified, signed-in, permanently approved owner explicitly activates once.
+     *  The server verifies the authenticated user, allowlist, and exclusive owner lock.
+     *  Signup email confirmation already proves mailbox ownership; no second OTP is sent.
+     */
+    fun activatePrimaryOwner(session: Session) {
         val response = request("POST", "/functions/v1/platform-owner-activation",
-            session, JSONObject().put("action", "request_code"))
-        check(response.optBoolean("code_requested") || response.optBoolean("activated")) {
-            "The activation email could not be requested."
-        }
-    }
-
-    /** Verifies Supabase's emailed single-use OTP; only the server can grant owner rights. */
-    fun claimPlatformAdmin(session: Session, activationCode: String) {
-        require(Regex("^[0-9]{6,8}$").matches(activationCode.trim())) {
-            "Enter the numeric one-time activation code."
-        }
-        val response = request("POST", "/functions/v1/platform-owner-activation",
-            session, JSONObject().put("action", "verify_code")
-                .put("code", activationCode.trim()))
+            session, JSONObject().put("action", "activate"))
         check(response.optBoolean("activated")) {
-            "Super Admin activation was not confirmed."
+            "Super Admin activation was not confirmed by the server."
         }
     }
 
