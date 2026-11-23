@@ -45,9 +45,9 @@ root=ET.parse(xml_file).getroot()
 text=' '.join(n.attrib.get('text','')+' '+n.attrib.get('content-desc','') for n in root.iter('node'))
 print('Initial on-screen labels:',text[:2000])
 if orientation=='landscape':
-    assert 'Email' in text and 'Password' in text, 'Compact landscape login inputs missing'
+    assert 'Login ID' in text and 'Password' in text, 'Landscape login inputs missing'
 else:
-    assert 'Every detail.' in text or 'Make room for great work.' in text, 'Floot-style editorial SOCYTO login missing'
+    assert 'Every detail.' in text or 'Welcome back.' in text, 'SOCYTO login branding missing'
 with open(png_file,'rb') as f:
     assert f.read(8)==b'\x89PNG\r\n\x1a\n', 'Screenshot not PNG'
     f.read(8)
@@ -82,7 +82,7 @@ for path in sys.argv[1:]:
     root=ET.parse(path).getroot()
     content += [(n.attrib.get('text','')+' '+n.attrib.get('content-desc','')) for n in root.iter('node')]
 text=' '.join(content)
-for expected in ('Email address','Password','Sign in','Create an account'):
+for expected in ('Login ID or administrator email','Password','Sign in','Set up Super Admin account'):
     assert expected in text, f'{expected!r} not available after scrolling'
 print('All login controls accessible on tested screen size')
 PY
