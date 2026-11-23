@@ -5,14 +5,14 @@
 ### Super Admin (the pre-authorized platform owner)
 1. Register with either email or an international-format mobile number.
 2. Complete Supabase's real email confirmation or SMS OTP confirmation. Verification never grants an elevated role by itself.
-3. Sign in after confirming the email or mobile. SOCYTO automatically attempts to send the one-time code for a pre-approved owner; **Send activation code to verified email or mobile** is also available for controlled retries.
+3. After confirming the email or mobile, sign in and **explicitly tap Send activation code**. Normal signup and login never create or send privileged invitations.
 4. The backend checks the verified Auth identity against `platform_owner_authorizations`, which only a trusted database operator can provision. It generates a cryptographically random 64-hex code, stores only its SHA-256 digest, binds the invitation to the current Auth user ID, and sends it to the same verified, pre-approved contact.
 5. Enter the one-time code in the app. It expires after 30 minutes; the recipient must match the approval and the inviting identity. The approval is consumed on successful activation.
 6. Subsequent sign-in opens Super Admin. Standard user signups cannot request platform access.
 
 **Delivery configuration required before this can work:** configure a verified Resend sender and `SOCYTO_ACTIVATION_EMAIL_API_KEY` + `SOCYTO_ACTIVATION_EMAIL_FROM` for email, and/or an enabled Twilio sender with `SOCYTO_ACTIVATION_TWILIO_SID`, `SOCYTO_ACTIVATION_TWILIO_TOKEN`, `SOCYTO_ACTIVATION_TWILIO_FROM` for SMS. India-region SMS may require DLT/sender registration. Keep all secrets in Supabase Edge Function secrets, never in Android, GitHub source, or documentation.
 
-A trusted operator must populate `public.platform_owner_authorizations` for the platform owner's independently verified contact. This is not a public registration endpoint. Code delivery fails closed with HTTP 503 if the selected messaging provider has not been set up. After verification, the owner receives a separate, owner-bound activation code once they sign in, not an automatic invitation during open signup. Without configured delivery the app stays secure and the code cannot be sent.
+A trusted operator must populate `public.platform_owner_authorizations` for the platform owner's independently verified contact. This is not a public registration endpoint. Code delivery fails closed with HTTP 503 if the selected messaging provider has not been set up. After verification, the owner may explicitly request an owner-bound activation code. Without configured delivery the app stays secure and the code cannot be sent.
 
 ### Firm and client registration
 - Super Admin creates a firm by entering its name and **Mobile or email**, and receives F-prefixed login ID plus one-time temporary password. Standard Indian 10-digit mobile input is normalized to E.164 (+91); other countries use international format.
@@ -59,3 +59,12 @@ A trusted operator must populate `public.platform_owner_authorizations` for the 
 - The Primary Owner sees Co-Admin contact, active/revoked state and pending invitations, and can revoke access or cancel invitations with confirmation. Access is checked live in the database, so revocation takes effect without waiting for a JWT claim refresh.
 - Only invitation digests are stored; the code is returned to the owner once. Messaging delivery is **not** claimed or automatic—the owner shares the invitation through their own trusted channel. No new dummy credentials or platform owner records are introduced.
 - Before release: confirm Kotlin and Deno builds, check per-role RLS, verify an invited user accepts a real contact, and verify revoked sessions lose all firm-management permissions.
+
+## Zero-record first-owner recovery
+
+- After wiping all user data, **no Auth user, owner lock, authorization, or invitation remains**.
+- A single private configuration row retains the two approved owner contacts, without generating an Auth account or entitlement.
+- On the first **explicit** activation-code request from a verified approved user, the service-role-only RPC `bootstrap_verified_platform_owner` securely re-establishes the immutable owner lock and the two contact approvals.
+- The RPC cannot be invoked by `anon` or `authenticated` database roles; it does not mint a code, send email/SMS, or grant admin privileges.
+- The regular activation delivery process still requires a configured provider. Until it is configured the signed-in user remains unassigned and no code can be issued.
+- Never embed approved owner contact values in public GitHub migrations, client-side code, application assets or screenshots. Provision them privately in the database, and preserve configuration independently from customer data.
