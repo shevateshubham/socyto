@@ -284,18 +284,35 @@ private fun SocytoApp() {
                     Text("Signed in, but no firm or project access assigned. Ask your SOCYTO administrator to link your verified account.")
                     SocytoStepCard(
                         "One-time administrator activation",
-                        "Activate Super Admin",
-                        "Only use an invitation issued by your SOCYTO database administrator. Signing up alone never grants administrator permissions."
+                        "Verify approved owner email",
+                        "Only the permanently authorized and email-verified Primary Owner can activate. No automatic code is generated."
                     ) {
+                        OutlinedButton(
+                            enabled = !busy,
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                busy = true
+                                message = ""
+                                api.async({ api.requestPlatformAdminCode(authenticated) }) { result ->
+                                    busy = false
+                                    result.onSuccess {
+                                        message = "If your account is the approved owner, check your email for the one-time code. The code expires after 10 minutes. Do not request another code."
+                                    }.onFailure {
+                                        message = it.message ?: "Unable to request activation code."
+                                    }
+                                }
+                            }
+                        ) { Text("Request activation code by email") }
                         OutlinedTextField(
-                            bootstrapCode, { bootstrapCode = it.trim() },
-                            label = { Text("One-time activation code") },
+                            value = bootstrapCode,
+                            onValueChange = { bootstrapCode = it.filter(Char::isDigit).take(8) },
+                            label = { Text("Email activation code") },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             visualTransformation = PasswordVisualTransformation()
                         )
                         Button(
-                            enabled = !busy && Regex("^[a-f0-9]{64}$").matches(bootstrapCode),
+                            enabled = !busy && Regex("^[0-9]{6,8}$").matches(bootstrapCode),
                             onClick = {
                                 busy = true
                                 message = ""
@@ -309,11 +326,11 @@ private fun SocytoApp() {
                                         scope = updatedScope
                                         loadWorkspace(authenticated, updatedScope)
                                     }.onFailure {
-                                        message = it.message ?: "Unable to activate Super Admin."
+                                        message = it.message ?: "Unable to verify Super Admin code."
                                     }
                                 }
                             }
-                        ) { Text("Activate using invitation") }
+                        ) { Text("Verify code and activate") }
                     }
                     OutlinedButton(onClick = {
                         busy = true
