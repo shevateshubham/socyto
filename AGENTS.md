@@ -35,3 +35,8 @@ If anything conflicts, document it and request a decision instead of inventing b
 
 ## Definition of done
 Acceptance criteria implemented; security checks covered; tests/build run or limitations disclosed; no placeholders in production; docs updated; diff reviewed.
+
+## Account onboarding workflow
+- Follow .agents/skills/account-onboarding/SKILL.md for firm/client identity changes.
+- Read docs/PHONE_ID_ONBOARDING.md before editing provisioning, password recovery or user-access screens.
+- Never merge an account-flow change without confirming Auth configuration, compile/unit tests, per-role end-to-end checks and live RLS restrictions.
