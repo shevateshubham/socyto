@@ -1,6 +1,9 @@
 package com.socyto.app
 
 import android.os.Bundle
+import android.app.Activity
+import androidx.core.view.WindowCompat
+import androidx.compose.ui.platform.LocalContext
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.activity.ComponentActivity
@@ -47,6 +50,17 @@ private fun SocytoApp() {
     val api = remember { SocytoApi() }
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var session by remember { mutableStateOf<Session?>(null) }
+    val hostActivity = LocalContext.current as? Activity
+    // Edge-to-edge Android 15+: dark status icons on the linen login screen,
+    // light status icons when a signed-in workspace has a deep-sage header.
+    SideEffect {
+        hostActivity?.window?.let { w ->
+            val bars = WindowCompat.getInsetsController(w, w.decorView)
+            bars.isAppearanceLightStatusBars = session == null ||
+                session?.requiresPasswordChange == true
+            bars.isAppearanceLightNavigationBars = true
+        }
+    }
     var branding by remember { mutableStateOf<BusinessBranding?>(null) }
     val brandPrimary = hexColor(branding?.primaryColorHex ?: "#314A43", deepOlive)
     val brandBackground = hexColor(branding?.backgroundColorHex ?: "#F7F6F2", Color.White)
