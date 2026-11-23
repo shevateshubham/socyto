@@ -1,6 +1,9 @@
 package com.socyto.app
 
 import android.os.Bundle
+import android.app.Activity
+import androidx.core.view.WindowCompat
+import androidx.compose.ui.platform.LocalContext
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.activity.ComponentActivity
@@ -28,7 +31,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.socyto.app.data.*
 
-private val deepOlive = Color(0xFF2E4A2B)
+private val deepOlive = Color(0xFF314A43)
 private fun hexColor(value: String, fallback: Color): Color =
     runCatching { Color(android.graphics.Color.parseColor(value)) }.getOrDefault(fallback)
 
@@ -47,12 +50,23 @@ private fun SocytoApp() {
     val api = remember { SocytoApi() }
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var session by remember { mutableStateOf<Session?>(null) }
+    val hostActivity = LocalContext.current as? Activity
+    // Edge-to-edge Android 15+: dark status icons on the linen login screen,
+    // light status icons when a signed-in workspace has a deep-sage header.
+    SideEffect {
+        hostActivity?.window?.let { w ->
+            val bars = WindowCompat.getInsetsController(w, w.decorView)
+            bars.isAppearanceLightStatusBars = session == null ||
+                session?.requiresPasswordChange == true
+            bars.isAppearanceLightNavigationBars = true
+        }
+    }
     var branding by remember { mutableStateOf<BusinessBranding?>(null) }
-    val brandPrimary = hexColor(branding?.primaryColorHex ?: "#2E4A2B", deepOlive)
-    val brandBackground = hexColor(branding?.backgroundColorHex ?: "#F7F5F0", Color.White)
-    val brandText = hexColor(branding?.textColorHex ?: "#1F1F1F", Color.Black)
-    val brandAccent = hexColor(branding?.accentColorHex ?: "#D4AF7C", Color(0xFFD4AF7C))
-    val brandSecondary = hexColor(branding?.secondaryColorHex ?: "#6B8E49", Color(0xFF6B8E49))
+    val brandPrimary = hexColor(branding?.primaryColorHex ?: "#314A43", deepOlive)
+    val brandBackground = hexColor(branding?.backgroundColorHex ?: "#F7F6F2", Color.White)
+    val brandText = hexColor(branding?.textColorHex ?: "#26312F", Color.Black)
+    val brandAccent = hexColor(branding?.accentColorHex ?: "#B69F89", Color(0xFFB69F89))
+    val brandSecondary = hexColor(branding?.secondaryColorHex ?: "#687F77", Color(0xFF687F77))
     val onPrimary = if (android.graphics.Color.luminance(
         brandPrimary.toArgb()
     ) > 0.4f) Color.Black else Color.White
@@ -140,10 +154,16 @@ private fun SocytoApp() {
     Scaffold(
         containerColor = brandBackground,
         topBar = {
-            if (session != null && session?.requiresPasswordChange != true) Surface(color = brandPrimary, shadowElevation = 3.dp) {
+            if (session != null && session?.requiresPasswordChange != true) Surface(
+                modifier = Modifier.fillMaxWidth(), color = brandPrimary, shadowElevation = 1.dp
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth()
+                        .statusBarsPadding()
+                        .heightIn(min = 64.dp)
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     val brandLogo = branding?.logoUrl
                     if (brandLogo == null) {
@@ -252,8 +272,12 @@ private fun SocytoApp() {
                     message = "Your password is updated. Sign in with your new password."
                 }
             } else {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text("WORKSPACE", color = MaterialTheme.colorScheme.secondary,
                             style = MaterialTheme.typography.labelSmall)
                         Text(when (val role = scope) {
@@ -262,27 +286,30 @@ private fun SocytoApp() {
                             AccountScope.Client -> "My projects"
                             AccountScope.Unassigned -> "Awaiting access"
                             null -> "Loading account"
-                        }, style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
+                        }, style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold,
                             maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
-                OutlinedButton(onClick = {
-                    session = null
-                    branding = null
-                    scope = null
-                    projects = emptyList()
-                    businesses = emptyList()
-                    selectedBusiness = null
-                    editingBranding = false
-                    selectedProject = null
-                    updates = emptyList()
-                    workspaceTab = "overview"
-                    message = ""
-                }) { Text("Sign out") }
+                    OutlinedButton(
+                        modifier = Modifier.heightIn(min = 48.dp),
+                        onClick = {
+                            session = null
+                            branding = null
+                            scope = null
+                            projects = emptyList()
+                            businesses = emptyList()
+                            selectedBusiness = null
+                            editingBranding = false
+                            selectedProject = null
+                            updates = emptyList()
+                            workspaceTab = "overview"
+                            message = ""
+                        }
+                    ) { Text("Sign out") }
                 }
                 val authenticated = session!!
                 if (scope == AccountScope.Unassigned) {
-                    Text("Signed in, but no firm or project access assigned. Ask your SOCYTO administrator to link your verified account.")
+                    Text("Your account is verified, but no role has been assigned yet. To set up SOCYTO as the platform owner, enter your private one-time activation code below.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     SocytoStepCard(
                         "One-time administrator activation",
                         "Activate Super Admin",

@@ -23,3 +23,23 @@ This is an Android Jetpack Compose implementation following DESIGN.md and the an
 
 ## Status
 Changes are committed to a draft PR, not deployed. Backend onboarding and SMS still require connected tests and rollout coordination with database migration 013.
+
+## November 23 — five-device compatibility verification
+
+The automated emulator run at https://github.com/shevateshubham/socyto/actions/runs/45150566352 completed **successfully** (all five jobs):
+- compact 720×1280 at 320 dpi — passed
+- standard 1080×2400 at 420 dpi — passed
+- compact 720×1480 at 150% font scaling — passed
+- tablet 1600×2560 at 320 dpi — passed
+- landscape 1600×720 at 320 dpi — passed
+
+Changes addressing the previous failures:
+1. Corrected a real user-visible status-bar overlap by adding safe insets to the signed-in header.
+2. Set appropriate dark system status icons on the warm-linen login background and light icons for the deep-sage signed-in header.
+3. Stacked login content on short landscape screens to allow vertical scrolling.
+4. Fixed screen-test swipe positions: `wm size` returns unrotated dimensions in landscape, so the test now reads actual rendered screenshot dimensions.
+5. Retried captures obstructed by transient **Pixel Launcher** system ANR dialogs instead of mistaking an OS overlay for an app defect.
+
+Reviewed compact screenshots for readable system bars and the final landscape screenshot for reachable setup and password recovery controls. Tests use an intentionally offline debug build to verify screen layout; this is not a connected end-to-end account-flow test. A separate SOCYTO 0.8.1 release build with public Supabase configuration was built and signed using the established SOCYTO release certificate, with Android APK Signature Scheme v2/v3 verification and signer continuity checked against 0.8.0.
+
+Remaining before production customer rollout: authenticated role-boundary acceptance tests, SMS provider validation and live device testing.
