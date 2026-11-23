@@ -213,6 +213,7 @@ private fun SocytoApp() {
         ) {
             if (session == null) {
                 SocytoFlootLogin(
+                    api = api,
                     enabled = !busy,
                     backendConfigured = api.isConfigured,
                     onSignUp = { email, password ->
