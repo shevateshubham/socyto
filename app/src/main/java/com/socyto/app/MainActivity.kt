@@ -62,7 +62,6 @@ private fun SocytoApp() {
     var message by remember { mutableStateOf("") }
     var showManagement by remember { mutableStateOf(false) }
     var showBusinessRegistration by remember { mutableStateOf(false) }
-    var bootstrapCode by remember { mutableStateOf("") }
     var projectSection by remember { mutableIntStateOf(0) }
     var workspaceTab by remember { mutableStateOf("overview") }
     var projects by remember { mutableStateOf(emptyList<ProjectSummary>()) }
@@ -283,54 +282,33 @@ private fun SocytoApp() {
                 if (scope == AccountScope.Unassigned) {
                     Text("Signed in, but no firm or project access assigned. Ask your SOCYTO administrator to link your verified account.")
                     SocytoStepCard(
-                        "One-time administrator activation",
-                        "Verify approved owner email",
-                        "Only the permanently authorized and email-verified Primary Owner can activate. No automatic code is generated."
+                        "Primary platform owner activation",
+                        "Activate Primary Super Admin",
+                        "Your signup email has already been verified. Only the permanently pre-approved account can activate. No second email or code is required."
                     ) {
-                        OutlinedButton(
+                        Button(
                             enabled = !busy,
                             modifier = Modifier.fillMaxWidth(),
                             onClick = {
                                 busy = true
                                 message = ""
-                                api.async({ api.requestPlatformAdminCode(authenticated) }) { result ->
-                                    busy = false
-                                    result.onSuccess {
-                                        message = "If your account is the approved owner, check your email for the one-time code. The code expires after 10 minutes. Do not request another code."
-                                    }.onFailure {
-                                        message = it.message ?: "Unable to request activation code."
-                                    }
-                                }
-                            }
-                        ) { Text("Request activation code by email") }
-                        OutlinedTextField(
-                            value = bootstrapCode,
-                            onValueChange = { bootstrapCode = it.filter(Char::isDigit).take(8) },
-                            label = { Text("Email activation code") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            visualTransformation = PasswordVisualTransformation()
-                        )
-                        Button(
-                            enabled = !busy && Regex("^[0-9]{6,8}$").matches(bootstrapCode),
-                            onClick = {
-                                busy = true
-                                message = ""
                                 api.async({
-                                    api.claimPlatformAdmin(authenticated, bootstrapCode)
+                                    api.activatePrimaryOwner(authenticated)
                                     api.accountScope(authenticated)
                                 }) { result ->
                                     busy = false
                                     result.onSuccess { updatedScope ->
-                                        bootstrapCode = ""
                                         scope = updatedScope
                                         loadWorkspace(authenticated, updatedScope)
+                                        message = if (updatedScope == AccountScope.PlatformAdmin)
+                                            "Primary Super Admin activated successfully."
+                                            else "Activation submitted; check access again."
                                     }.onFailure {
-                                        message = it.message ?: "Unable to verify Super Admin code."
+                                        message = it.message ?: "Unable to activate Primary Super Admin."
                                     }
                                 }
                             }
-                        ) { Text("Verify code and activate") }
+                        ) { Text("Activate Primary Super Admin") }
                     }
                     OutlinedButton(onClick = {
                         busy = true
