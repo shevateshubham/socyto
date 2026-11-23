@@ -1,0 +1,37 @@
+# SOCYTO — AI Development Instructions
+
+## Mission
+Build a reliable, production-oriented native Android application for SOCYTO interior-project execution, material receipts, expenditures, and client-visible status tracking.
+
+## Source of truth
+1. Existing working source code and tests; do not overwrite functionality blindly.
+2. REQUIREMENTS.md for product decisions.
+3. SECURITY.md for access and data boundaries.
+4. ARCHITECTURE.md for implementation constraints.
+5. DESIGN.md for UI styling and accessibility.
+If anything conflicts, document it and request a decision instead of inventing behavior.
+
+## Required engineering workflow
+- Inspect affected code, database schema and existing tests before proposing changes.
+- Make small, reviewable commits on a feature branch; do not write directly to main.
+- Implement end-to-end functionality, including persistence, loading, empty, error and offline states where appropriate.
+- Never misrepresent a prototype as functional. Do not invent test results, account access, API responses, database rows, credentials, build outputs or deployments.
+- No production fake data, hardcoded login credentials, simulated completions or mock network responses. Explicitly named, isolated test fixtures are permissible in tests only.
+- No secrets, private client documents, signing credentials or service-role keys in source code, logs, screenshots or APKs.
+- Use configured environment/build configuration for public client settings; public/publishable keys are not privileged secrets.
+- Check existing data and migrations before schema changes; protect data with database-side access control.
+- Use stable project/task IDs and consistent units/currencies; avoid magic status strings and hardcoded project-specific categories.
+- Create or update focused unit/UI/integration tests for each behavioral change; report exactly what was and wasn't run.
+- Keep Android views adaptive to phone and tablet widths, portrait and landscape, and font scaling.
+- After every feature, update affected product/technical docs and verify acceptance criteria.
+
+## Project-specific guardrails
+- SOCYTO has one internal architect/admin initially; clients have read-only access to only their assigned project data.
+- Every project's requirement/task list is customizable, not a fixed room-wise checklist.
+- Progress is an effort-weighted combination of binary and quantity-based task progress: see REQUIREMENTS.md.
+- Client-facing status changes only on an explicit admin publish operation; editing draft tasks must not silently change client-visible status.
+- Received goods drive actual project expenditure. No fixed allocated budget or current-on-site material tracking in v1.
+- Never expose unpublished draft values, other clients' records, material cost internals, or internal notes unless explicitly authorized.
+
+## Definition of done
+Acceptance criteria implemented; security checks covered; tests/build run or limitations disclosed; no placeholders in production; docs updated; diff reviewed.
