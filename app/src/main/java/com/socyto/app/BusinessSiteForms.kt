@@ -1,6 +1,8 @@
 package com.socyto.app
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
@@ -48,15 +50,16 @@ fun BusinessManagementPanel(
             intakeTab = 1
         }
     } else {
-    SocytoSectionHeader(
-        "Set up a project",
-        "Create a client first, then connect their project to your practice"
+    SocytoPageHeading(
+        "FIRM WORKSPACE",
+        "Clients & projects",
+        "Create a client account, then add their first project."
     )
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(selected = intakeTab == 0, onClick = { intakeTab = 0 },
-            label = { Text("1 · Client") })
+            label = { Text("01 · Client access") })
         FilterChip(selected = intakeTab == 1, onClick = { intakeTab = 1 },
-            label = { Text("2 · Project") })
+            label = { Text("02 · Project details") })
     }
     if (intakeTab == 0) {
     SocytoStepCard("Step 01 · Client details", "Who are we designing for?",
@@ -68,7 +71,11 @@ fun BusinessManagementPanel(
     )
     OutlinedTextField(
         value = clientPhone, onValueChange = { clientPhone = it },
-        label = { Text("Mobile number with country code (+91...)") }, modifier = Modifier.fillMaxWidth(),
+        label = { Text("Registered mobile number") }, modifier = Modifier.fillMaxWidth(),
+        placeholder = { Text("+91…") },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+        isError = clientPhone.isNotBlank() && !AccountIdentifiers.validPhone(clientPhone),
+        supportingText = { Text("Use country code; this number is needed for secure recovery") },
         singleLine = true
     )
     Button(
@@ -89,7 +96,7 @@ fun BusinessManagementPanel(
             }
         },
         modifier = Modifier.fillMaxWidth()
-    ) { Text("Create client & generate credentials") }
+    ) { Text(if (loading) "Creating client…" else "Create client & generate access") }
     }
     } else {
     SocytoStepCard("Step 02 · Project details", "Start a new project",
