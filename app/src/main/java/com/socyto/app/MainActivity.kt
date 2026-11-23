@@ -21,6 +21,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -53,7 +54,7 @@ private fun SocytoApp() {
     val brandAccent = hexColor(branding?.accentColorHex ?: "#D4AF7C", Color(0xFFD4AF7C))
     val brandSecondary = hexColor(branding?.secondaryColorHex ?: "#6B8E49", Color(0xFF6B8E49))
     val onPrimary = if (android.graphics.Color.luminance(
-        androidx.compose.ui.graphics.toArgb(brandPrimary)
+        brandPrimary.toArgb()
     ) > 0.4f) Color.Black else Color.White
 
     var scope by remember { mutableStateOf<AccountScope?>(null) }
