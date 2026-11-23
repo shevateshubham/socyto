@@ -47,7 +47,7 @@ fun RegisterBusinessForm(
             }
         },
         enabled = !saving && ProjectInputRules.validName(name) &&
-            Regex("^\\+[1-9][0-9]{7,14}$").matches(phone.trim()),
+            AccountIdentifiers.validPhone(phone),
         modifier = Modifier.fillMaxWidth()
     ) { Text("Create firm & generate credentials") }
     if (saving) LinearProgressIndicator(Modifier.fillMaxWidth())
