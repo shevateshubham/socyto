@@ -16,7 +16,8 @@ data class Session(
     var accessToken: String,
     val userId: String,
     var refreshToken: String,
-    var expiresAtEpochMs: Long
+    var expiresAtEpochMs: Long,
+    var requiresPasswordChange: Boolean = false
 )
 data class BusinessSummary(val id: String, val name: String, val status: String = "pending")
 data class ProjectSummary(val id: String, val businessId: String, val name: String)
@@ -33,6 +34,7 @@ data class RequirementSummary(
 )
 data class MaterialReceiptSummary(val id: String, val materialName: String, val quantity: Double, val unit: String, val amount: Double)
 data class PublishedUpdate(val progress: String, val note: String, val publishedAt: String)
+data class ClientTemporaryCredentials(val email: String, val temporaryPassword: String)
 
 sealed class AccountScope {
     data object PlatformAdmin : AccountScope()
@@ -75,6 +77,35 @@ class SocytoApi {
                 .put("new_business_type", businessType))
     }
 
+    /**
+     * Provision a real, firm-scoped client login through the privileged Edge Function.
+     * This password is returned exactly once, not stored by the Android app.
+     */
+    fun provisionClientLogin(
+        session: Session, businessId: String, clientId: String
+    ): ClientTemporaryCredentials {
+        val result = request("POST", "/functions/v1/client-onboarding", session,
+            JSONObject().put("action", "provision_client")
+                .put("business_id", businessId)
+                .put("client_id", clientId))
+        return ClientTemporaryCredentials(
+            result.getString("email"), result.getString("temporary_password"))
+    }
+
+    fun completeClientFirstLogin(session: Session, newPassword: String) {
+        require(newPassword.length in 12..128 &&
+            newPassword.any { it.isLetter() } &&
+            newPassword.any { it.isDigit() }) {
+            "Use 12 or more characters containing letters and numbers."
+        }
+        val result = request("POST", "/functions/v1/client-onboarding", session,
+            JSONObject().put("action", "complete_first_login")
+                .put("new_password", newPassword))
+        check(result.optBoolean("success")) {
+            "Password change was not confirmed by the server."
+        }
+    }
+
     /** Only a Business Admin can link their own client to a verified login. */
     fun linkClientLogin(session: Session, businessId: String, clientId: String) {
         request("POST", "/rest/v1/rpc/link_verified_client_login", session,
@@ -90,7 +121,10 @@ class SocytoApi {
             userId = response.getJSONObject("user").getString("id"),
             refreshToken = response.getString("refresh_token"),
             expiresAtEpochMs = System.currentTimeMillis() +
-                response.optLong("expires_in", 3600L) * 1000L
+                response.optLong("expires_in", 3600L) * 1000L,
+            requiresPasswordChange = response.getJSONObject("user")
+                .optJSONObject("app_metadata")
+                ?.optBoolean("socyto_password_reset_required", false) == true
         )
     }
 
