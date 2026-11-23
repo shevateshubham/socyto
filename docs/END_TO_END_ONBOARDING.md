@@ -1,20 +1,20 @@
 # SOCYTO — Clean-start onboarding checklist
 
 ## 0. Pre-flight
-- Install an APK built from the secure owner-email OTP branch (the old 64-character invitation UI is obsolete).
-- Set the real `SOCYTO_SUPABASE_URL` and `SOCYTO_SUPABASE_PUBLISHABLE_KEY` as GitHub Actions repository variables (Settings → Secrets and variables → Actions → Variables), and rebuild the APK.
-- Never embed service-role keys or reuse deleted QA credentials.
-- The approved, verified owner explicitly requests an OTP. Supabase Auth generates and emails the one-time secret; SOCYTO does not log or store its plaintext. Requests expire in 10 minutes, with at most 5 verification attempts.
-- **External configuration required:** In Supabase Authentication > Email Templates > Magic Link, include `{{ .Token }}` in the email body, so users receive a numeric OTP rather than only a magic link. Verify actual inbox delivery. Do not mistake an Auth `mail.send` log for inbox confirmation.
+- Install the **connected** SOCYTO Android build with its Supabase URL and publishable key configured.
+- Never include service-role keys, shared QA credentials, or dummy users.
+- User signs up with the permanently approved Primary Owner email and clicks the **signup confirmation link**.
+- The signup confirmation link is the sole email proof for initial owner activation. A second email/OTP is deliberately not used.
+- Authentication confirmation alone does not grant the Super Admin role: the user must **sign in and explicitly tap Activate Primary Super Admin**.
+- The privileged Edge Function independently validates the authenticated Supabase account, verified email, permanent approved-owner allowlist, immutable exclusive-owner lock, and a single-use owner authorization.
 
-## 1. Create the first Super Admin (fresh account)
-1. Open SOCYTO, choose Create account with an email you control, set a password.
-2. Verify your email from the confirmation message.
-3. Sign in with your new account. It must initially show **Awaiting access** (not automatic Super Admin).
-4. In **One-time administrator activation**, tap **Request activation code by email** explicitly. Only the permanently approved and verified owner identity is eligible.
-5. Check the approved email, type the numeric code, then tap **Verify code and activate**. Repeated requests are blocked while a challenge is pending.
-6. The backend must validate the one-time code before atomically granting `platform_administrators`. The dashboard then shows **Super Admin**; reused or expired codes fail.
-7. If the already-activated approved owner signs in, no new code is generated.
+## 1. Create Primary Super Admin
+1. Register with the approved Primary Owner email; follow the Supabase signup verification link.
+2. Sign in with the email and password. Before activation, the account is unassigned.
+3. Tap **Activate Primary Super Admin** exactly once. The server checks eligibility and grants the role.
+4. The application refreshes the role and opens the Super Admin workspace.
+5. Future sign-ins use the same account, without a second activation email, OTP, or role grant.
+6. A different email or unverified account cannot activate the Primary Owner role.
 
 ## 2. Register a firm using a real verified account
 1. Sign out of Super Admin. Create a *separate* Firm Admin account using its own controlled email and password.
@@ -42,7 +42,7 @@
 4. Edits by Firm Admin without another publish must remain invisible to the client.
 
 ## Troubleshooting and acceptance
-- No email OTP: confirm the Magic Link template contains `{{ .Token }}`, Supabase Auth email delivery is enabled, and check the email provider / spam folder. A pending code is not resent automatically.
+- Missing signup confirmation email: check the Supabase signup template and email delivery configuration. No additional owner activation email is required.
 - Unverified account: check Supabase Auth email confirmation.
 - Firm Admin cannot enter: check firm account **active** and verified membership.
 - Client cannot enter: ensure login was provisioned and one-time password replaced.
