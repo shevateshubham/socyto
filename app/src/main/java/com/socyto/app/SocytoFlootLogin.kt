@@ -286,6 +286,48 @@ private fun FlootCredentialCard(
                 TextButton(onClick = { recovering = false; recoveryRequested = false; recoveryOtp = ""; recoveryPassword = ""; recoveryMessage = "" },
                     modifier = Modifier.fillMaxWidth()) { Text("Back to sign in") }
             } else {
+            if (phoneSignUpPending && signingUp) {
+                Text("Verify your mobile number",
+                    style = MaterialTheme.typography.titleMedium)
+                Text("Enter the SMS code sent to your registered mobile number.",
+                    style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = phoneSignUpCode, onValueChange = { phoneSignUpCode = it },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    label = { Text("SMS verification code") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                Button(
+                    enabled = enabled && !phoneSignUpBusy &&
+                        Regex("^[0-9]{6,8}$").matches(phoneSignUpCode.trim()),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    onClick = {
+                        phoneSignUpBusy = true
+                        phoneSignUpMessage = ""
+                        api.async({
+                            api.verifySignUpSms(email.trim(), phoneSignUpCode.trim())
+                        }) { result ->
+                            phoneSignUpBusy = false
+                            result.onSuccess {
+                                phoneSignUpPending = false
+                                signingUp = false
+                                password = ""
+                                phoneSignUpCode = ""
+                                phoneSignUpMessage = "Mobile verified. Sign in to activate your account."
+                            }.onFailure {
+                                phoneSignUpMessage = it.message ?: "Mobile verification failed."
+                            }
+                        }
+                    }
+                ) { Text("Verify mobile") }
+                if (phoneSignUpBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (phoneSignUpMessage.isNotBlank())
+                    Text(phoneSignUpMessage, style = MaterialTheme.typography.bodySmall)
+                TextButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { phoneSignUpPending = false; phoneSignUpCode = ""; phoneSignUpMessage = "" }
+                ) { Text("Back to account setup") }
+            } else {
             OutlinedTextField(
                 value = email, onValueChange = { email = it },
                 modifier = Modifier.fillMaxWidth(),
@@ -367,6 +409,7 @@ private fun FlootCredentialCard(
             if (!signingUp) {
                 TextButton(onClick = { recovering = true },
                     modifier = Modifier.fillMaxWidth()) { Text("Forgot password? Reset using mobile") }
+            }
             }
             }
             if (!landscape) {
