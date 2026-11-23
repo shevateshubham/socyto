@@ -82,7 +82,7 @@ class SocytoApi {
     fun registerFirm(
         session: Session, businessName: String, administratorEmail: String, businessType: String
     ) {
-        require(businessName.trim().length in 2..120)
+        require(businessName.trim().length in 2..80)
         require(administratorEmail.contains("@"))
         request("POST", "/rest/v1/rpc/register_business_for_verified_email", session,
             JSONObject().put("new_business_name", businessName.trim())
