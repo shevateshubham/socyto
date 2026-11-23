@@ -39,3 +39,12 @@ Each task has an effort score: small=1, medium=2, large=3 initially, with positi
 
 ## Out of scope unless separately approved
 Payments, supplier procurement workflow, detailed stock-on-site, budget allocation, room-wise predefined progress, client editing, public project visibility.
+
+## Firm and client account onboarding (new)
+- Platform Super Admin is provisioned once through verified email and a trusted one-time bootstrap invitation.
+- Only Super Admin provisions firm accounts from a firm name and registered E.164 phone number; each firm receives a random F-prefixed login code and a once-visible temporary password.
+- Each firm has its own business administrator and data scope; firm administrators provision clients from client name and phone and receive a C-prefixed login code and once-visible password.
+- Firm and client credentials must be changed at first sign-in before protected project data access. No shared/dummy/password-in-source accounts.
+- Forgotten passwords are recovered by a real SMS verification challenge to the registered mobile number, then a new user-chosen password; an SMS provider must be configured.
+- Creating a client does not require a project. A firm administrator may then add one or more projects, edit private drafts and publish only intended progress updates.
+- Codes are not database keys or authorization capabilities; server-verified Auth identity, tenant membership and RLS decide access.
