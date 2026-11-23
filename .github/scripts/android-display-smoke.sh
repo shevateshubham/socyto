@@ -114,7 +114,7 @@ read -r ACTUAL_W ACTUAL_H < <(python3 - "$OUT/01-login-initial.png" <<'PY'
 import struct,sys
 with open(sys.argv[1],'rb') as f:
     header=f.read(24)
-assert header[:8]==b'\\x89PNG\\r\\n\\x1a\\n', 'Initial screenshot is not PNG'
+assert header[:8]==b'\x89PNG\r\n\x1a\n', 'Initial screenshot is not PNG'
 print(*struct.unpack('>II',header[16:24]))
 PY
 )
