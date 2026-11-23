@@ -173,16 +173,16 @@ class SocytoApi {
             "business_id=eq.${encode(businessId)}",
             session
         )
-        if (rows.length() == 0) {
-            // Use the actual business name for admins; clients receive a neutral fallback.
-            return BusinessBranding(businessId, "Project workspace")
+        check(rows.length() == 1) {
+            "Business branding is unavailable. Ask an administrator to configure this workspace."
         }
         val row = rows.getJSONObject(0)
         fun stringOrNull(name: String): String? =
             if (row.isNull(name)) null else row.optString(name)
         return BusinessBranding(
             businessId = businessId,
-            displayName = BrandValidator.displayNameOrFallback(stringOrNull("display_name"), "Project workspace"),
+            displayName = stringOrNull("display_name")?.trim()?.takeIf { it.isNotBlank() }
+                ?: error("Business display name is missing. Ask an administrator to update branding."),
             logoUrl = stringOrNull("logo_storage_path")?.let { logoPath ->
                 BrandValidator.logoUrlOrNull(
                     BuildConfig.SUPABASE_URL.trimEnd('/') +
