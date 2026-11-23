@@ -295,9 +295,8 @@ private fun SocytoApp() {
                     val firm = selectedBusiness!!
                     BusinessBrandEditor(
                         business = firm,
-                        current = branding?.takeIf { it.businessId == firm.id }?.let {
-                            if (it.displayName == "Project workspace") it.copy(displayName = firm.name) else it
-                        } ?: BusinessBranding(firm.id, firm.name),
+                        current = branding?.takeIf { it.businessId == firm.id }
+                            ?: BusinessBranding(firm.id, firm.name),
                         session = authenticated,
                         api = api,
                         onSaved = { updated ->
