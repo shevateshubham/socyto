@@ -28,6 +28,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import com.socyto.app.data.SocytoApi
+import com.socyto.app.data.AccountIdentifiers
 import java.util.Locale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -255,7 +256,7 @@ private fun FlootCredentialCard(
                         }, modifier = Modifier.fillMaxWidth()) { Text("Verify SMS & reset password") }
                 } else {
                     Button(enabled = enabled && !recoveryBusy &&
-                        Regex("^\\+[1-9][0-9]{7,14}$").matches(recoveryPhone.trim()),
+                        AccountIdentifiers.validPhone(recoveryPhone),
                         onClick = {
                             recoveryBusy = true
                             recoveryMessage = ""
@@ -315,7 +316,7 @@ private fun FlootCredentialCard(
             )
             Button(
                 enabled = enabled && backendConfigured &&
-                    (if (signingUp) email.contains("@") else email.contains("@") || Regex("^[FC][0-9]{9}$").matches(email.trim().uppercase(Locale.ROOT))) && password.length >= (if (signingUp) 8 else 1),
+                    (if (signingUp) email.contains("@") else email.contains("@") || AccountIdentifiers.isAccountCode(email)) && password.length >= (if (signingUp) 8 else 1),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp),
                 shape = RoundedCornerShape(12.dp),
                 onClick = {
