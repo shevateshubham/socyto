@@ -45,6 +45,7 @@ fun BusinessManagementPanel(
     if (oneTimeCredentials != null) {
         SocytoOneTimeCredentials(oneTimeCredentials!!) {
             oneTimeCredentials = null
+            intakeTab = 1
         }
     } else {
     SocytoSectionHeader(
