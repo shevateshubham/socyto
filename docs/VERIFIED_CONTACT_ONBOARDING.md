@@ -68,3 +68,20 @@ A trusted operator must populate `public.platform_owner_authorizations` for the 
 - The RPC cannot be invoked by `anon` or `authenticated` database roles; it does not mint a code, send email/SMS, or grant admin privileges.
 - The regular activation delivery process still requires a configured provider. Until it is configured the signed-in user remains unassigned and no code can be issued.
 - Never embed approved owner contact values in public GitHub migrations, client-side code, application assets or screenshots. Provision them privately in the database, and preserve configuration independently from customer data.
+
+## 0.8.9 — Primary Owner activation without a second email provider
+
+Supabase Auth already confirms the Primary Owner's email. A separate custom activation-code delivery service is unnecessary for initial owner enrollment.
+
+- Normal signup, email confirmation, login and session restoration do **not** activate administrator privileges.
+- The awaiting-access screen shows one explicit **Activate Primary Super Admin** action.
+- Backend authenticates the caller's actual Supabase Auth JWT with getUser and checks email_confirmed_at.
+- Privileged service role calls the restricted bootstrap RPC, which matches the verified email against the private approved owner configuration and ensures the immutable owner UUID lock matches.
+- Privileged service role then calls activate_verified_primary_owner. One SQL transaction checks the confirmed approved email and owner lock, consumes the unconsumed email authorization, and inserts the permanent Primary Super Admin membership.
+- The activation is idempotent for an already active owner and never emails, logs, generates or returns a second activation secret.
+- No other user or phone number can activate the owner role; email verification by itself is not permission.
+- Co-Admin invitation codes remain a separate owner-controlled process and are not changed.
+- Existing firm, client and project paths are unchanged.
+- Verified SMS delivery remains unavailable until a separate SMS provider is enabled. Email-only onboarding can proceed without it.
+
+Acceptance: unit tests, all five Android screen profiles, server-side wrong-identity rejection, confirmed owner record after **user** taps the button, and end-to-end firm/client publication. Do not activate the user's account via an operator test.
