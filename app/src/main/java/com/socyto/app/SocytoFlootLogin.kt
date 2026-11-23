@@ -182,6 +182,8 @@ private fun FlootCredentialCard(
     var phoneSignUpBusy by remember { mutableStateOf(false) }
     var phoneSignUpCode by remember { mutableStateOf("") }
     var phoneSignUpMessage by remember { mutableStateOf("") }
+    var resendBusy by remember { mutableStateOf(false) }
+    var resendMessage by remember { mutableStateOf("") }
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(25.dp),
@@ -336,15 +338,6 @@ private fun FlootCredentialCard(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 shape = RoundedCornerShape(12.dp)
             )
-            if (email.isNotBlank() && email.contains("@")) {
-                Text(
-                    "Email: " + email.trim().lowercase(Locale.ROOT),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = color.onSurfaceVariant,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
             OutlinedTextField(
                 value = password, onValueChange = { password = it },
                 modifier = Modifier.fillMaxWidth(),
@@ -408,6 +401,28 @@ private fun FlootCredentialCard(
             if (!signingUp) {
                 TextButton(onClick = { recovering = true },
                     modifier = Modifier.fillMaxWidth()) { Text("Forgot password? Reset using mobile") }
+            }
+            if (AccountIdentifiers.validEmail(email)) {
+                TextButton(
+                    enabled = !resendBusy && backendConfigured,
+                    onClick = {
+                        resendBusy = true
+                        resendMessage = ""
+                        api.async({ api.resendSignupConfirmation(email) }) { result ->
+                            resendBusy = false
+                            result.onSuccess {
+                                resendMessage = "If verification is still pending, a fresh confirmation email has been requested. Check inbox and spam."
+                            }.onFailure {
+                                resendMessage = it.message ?: "Could not request another verification email."
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                ) { Text(if (resendBusy) "Requesting verification…" else "Resend verification email") }
+                if (resendMessage.isNotBlank()) {
+                    Text(resendMessage, style = MaterialTheme.typography.bodySmall,
+                        color = color.onSurfaceVariant)
+                }
             }
             }
             }
