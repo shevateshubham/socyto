@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -47,7 +49,7 @@ tasks.register("verifyProductionBackend") {
         val url = socytoBackendUrl
         val key = socytoPublishableKey
         check(url.startsWith("https://") && runCatching {
-            val parsed = java.net.URI(url)
+            val parsed = URI(url)
             parsed.host?.endsWith(".supabase.co") == true && parsed.userInfo == null &&
                 parsed.query == null && parsed.fragment == null
         }.getOrDefault(false)) {
