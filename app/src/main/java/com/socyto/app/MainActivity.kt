@@ -53,7 +53,7 @@ private fun SocytoApp() {
     val brandAccent = hexColor(branding?.accentColorHex ?: "#D4AF7C", Color(0xFFD4AF7C))
     val brandSecondary = hexColor(branding?.secondaryColorHex ?: "#6B8E49", Color(0xFF6B8E49))
     val onPrimary = if (android.graphics.Color.luminance(
-        android.graphics.Color.parseColor(branding?.primaryColorHex ?: "#2E4A2B")
+        androidx.compose.ui.graphics.toArgb(brandPrimary)
     ) > 0.4f) Color.Black else Color.White
 
     var scope by remember { mutableStateOf<AccountScope?>(null) }
