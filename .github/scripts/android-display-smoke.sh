@@ -133,7 +133,7 @@ for p in sorted(directory.glob('*-ui.xml')):
     root=ET.parse(p).getroot()
     content.extend((n.attrib.get('text','')+' '+n.attrib.get('content-desc','')) for n in root.iter('node'))
 all_text=' '.join(content)
-for expected in ('Login ID or administrator email','Password','Sign in','Set up Super Admin account'):
+for expected in ('Mobile, email or account ID','Password','Sign in','Set up Super Admin account'):
     assert expected in all_text, f'{expected!r} was inaccessible after scrolling'
 assert "isn't responding" not in all_text, 'System popup obscured UI during check'
 print('All login controls reachable through actual scroll gestures')

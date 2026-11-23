@@ -66,6 +66,37 @@ class SocytoApi {
             JSONObject().put("email", email.trim()).put("password", password))
     }
 
+    /** Re-send a registration confirmation using Supabase Auth, without bypassing verification. */
+    fun resendSignupConfirmation(email: String) {
+        require(AccountIdentifiers.validEmail(email)) { "Enter a valid email address." }
+        request("POST", "/auth/v1/resend", null,
+            JSONObject().put("type", "signup")
+                .put("email", email.trim().lowercase(java.util.Locale.ROOT)))
+    }
+
+    /** Begin first-time Super Admin registration using either email or phone. */
+    fun signUpWithIdentifier(identifier: String, password: String): Boolean {
+        val value = identifier.trim()
+        require(AccountIdentifiers.validEmail(value) || AccountIdentifiers.validPhone(value)) {
+            "Enter an email address or mobile number including the country code."
+        }
+        require(password.length >= 8) { "Choose a password with at least eight characters." }
+        val payload = JSONObject().put("password", password)
+        if (AccountIdentifiers.validPhone(value)) payload.put("phone", value)
+        else payload.put("email", value.lowercase(java.util.Locale.ROOT))
+        request("POST", "/auth/v1/signup", null, payload)
+        return AccountIdentifiers.validPhone(value)
+    }
+
+    /** Verify first-time SMS registration before claiming administrator access. */
+    fun verifySignUpSms(phone: String, oneTimeCode: String) {
+        require(AccountIdentifiers.validPhone(phone))
+        require(Regex("^[0-9]{6,8}$").matches(oneTimeCode.trim()))
+        request("POST", "/auth/v1/verify", null,
+            JSONObject().put("phone", phone.trim())
+                .put("token", oneTimeCode.trim()).put("type", "sms"))
+    }
+
     /** A verified new account may redeem an expiring, single-use administrator invitation. */
     fun claimPlatformAdmin(session: Session, invitationCode: String) {
         require(Regex("^[a-f0-9]{64}$").matches(invitationCode.trim())) {
@@ -181,10 +212,22 @@ class SocytoApi {
             JSONObject().put("password", newPassword))
     }
 
-    fun signIn(email: String, password: String): Session {
-        val authEmail = AccountIdentifiers.authenticationEmail(email)
-        val response = request("POST", "/auth/v1/token?grant_type=password", null,
-            JSONObject().put("email", authEmail).put("password", password))
+    /** One unified sign-in field: email, phone, or generated F/C code. */
+    fun signIn(identifier: String, password: String): Session {
+        val value = identifier.trim()
+        require(AccountIdentifiers.validIdentifier(value)) {
+            "Enter a valid email, +country-code mobile number, or firm/client ID."
+        }
+        val response = if (AccountIdentifiers.validPhone(value)) {
+            // Password validation stays inside Supabase Auth; this service
+            // resolves administrator phones and managed firm/client accounts.
+            request("POST", "/functions/v1/account-login", null,
+                JSONObject().put("phone", value).put("password", password))
+        } else {
+            request("POST", "/auth/v1/token?grant_type=password", null,
+                JSONObject().put("email", AccountIdentifiers.authenticationEmail(value))
+                    .put("password", password))
+        }
         return Session(
             accessToken = response.getString("access_token"),
             userId = response.getJSONObject("user").getString("id"),
@@ -544,6 +587,13 @@ class SocytoApi {
             if (status !in 200..299) {
                 // Keep credentials and raw server responses out of the user interface.
                 val authLogin = path.startsWith("/auth/v1/token?grant_type=password")
+                val authErrorCode = if (authLogin) {
+                    runCatching {
+                        val raw = connection.errorStream
+                            ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                        JSONObject(raw).optString("error_code")
+                    }.getOrDefault("")
+                } else ""
                 val onboardingError = if (path == "/functions/v1/client-onboarding") {
                     runCatching {
                         val responseText = connection.errorStream
@@ -553,10 +603,21 @@ class SocytoApi {
                 } else ""
                 val message = when {
                     onboardingError.isNotBlank() -> onboardingError
-                    authLogin && status == 400 ->
-                        "Email or password is incorrect. Check your credentials and try again."
-                    authLogin && status == 429 ->
+                    authLogin && authErrorCode == "email_not_confirmed" ->
+                        "Email not verified. Open the latest confirmation email, or resend it below."
+                    path == "/auth/v1/resend" && status == 429 ->
+                        "Too many verification requests. Please try again later."
+                    path == "/auth/v1/resend" && status >= 400 ->
+                        "Verification email could not be sent. Try again later."
+                    (authLogin && status == 400) ||
+                        (path == "/functions/v1/account-login" && status == 401) ->
+                        "Invalid mobile, email, account ID or password."
+                    (authLogin || path == "/functions/v1/account-login") && status == 429 ->
                         "Too many sign-in attempts. Please try again later."
+                    path == "/auth/v1/signup" && status >= 400 ->
+                        "Registration failed. Check your details and email/SMS provider availability."
+                    path == "/auth/v1/verify" && status >= 400 ->
+                        "Verification code expired or incorrect. Try again."
                     status == 401 || status == 403 ->
                         "Access denied. Check account permissions."
                     else -> "Service request failed (HTTP $status)."

@@ -37,3 +37,10 @@ Deny by default. Never trust UI role checks as an authorization boundary. Treat 
 - Password recovery uses Supabase Auth SMS OTP with no signup, OTP expiry and rate limits; do not treat possession of an ID or a mobile number string as identity verification.
 - Confirm the Auth provider can support reserved internal login addresses before shipping. Never use synthetic addresses for mail delivery or security notifications.
 - Keep the new provisioning branch undeployed until SMS, RLS, cross-tenant and connected device tests pass.
+
+## Unified login protections
+- A public endpoint can map a mobile login identifier only inside the trusted backend; never expose the resolved synthetic Auth email or a user-existence endpoint to clients.
+- Passwords must be validated by Supabase Auth. Keep identifier failures generic and honor authentication rate limits. Before real-customer rollout add gateway-level rate limiting and abuse monitoring for the public phone-login endpoint.
+- Mobile sign-up requires Supabase SMS delivery and OTP verification, which must be confirmed with a working provider before being advertised as available.
+- The bootstrap RPC allows Super Admin activation only after verified email OR verified phone AND presentation of a valid, unexpired, single-use invitation. It must not create an invitation automatically from public signup.
+- Do not turn on `phone_confirm=true` or `email_confirm=true` for unverified user-supplied identities merely to bypass delivery issues.
