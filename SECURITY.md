@@ -27,3 +27,13 @@ Deny by default. Never trust UI role checks as an authorization boundary. Treat 
 - Rotate exposed credentials, revoke compromised sessions and handle access changes.
 - Maintain distinct dev/test/prod configurations and prevent debug data reaching production.
 - Security reviews are required before production release and after changing any policy/schema.
+
+## Phone-linked account provisioning
+- Firm/client IDs are public-facing handles only; password or verified SMS OTP is required to authenticate.
+- Provisioning must run in a trusted Edge Function with server-side role and tenant checks; never put an Auth administrative secret in the app.
+- Temporary passwords are strong server-generated secrets, never logged, committed, or stored in client/firm records; display only once to the provisioning administrator.
+- Reject existing phone identities rather than silently linking or replacing them. Require additional design before allowing one phone to manage multiple accounts.
+- Keep first-login access blocked in RLS for firm and client users until a trusted backend clears the password-reset-required flag.
+- Password recovery uses Supabase Auth SMS OTP with no signup, OTP expiry and rate limits; do not treat possession of an ID or a mobile number string as identity verification.
+- Confirm the Auth provider can support reserved internal login addresses before shipping. Never use synthetic addresses for mail delivery or security notifications.
+- Keep the new provisioning branch undeployed until SMS, RLS, cross-tenant and connected device tests pass.
