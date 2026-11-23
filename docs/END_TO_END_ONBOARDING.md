@@ -1,19 +1,20 @@
 # SOCYTO — Clean-start onboarding checklist
 
 ## 0. Pre-flight
-- Install a newly built APK containing the one-time admin invitation UI.
+- Install an APK built from the secure owner-email OTP branch (the old 64-character invitation UI is obsolete).
 - Set the real `SOCYTO_SUPABASE_URL` and `SOCYTO_SUPABASE_PUBLISHABLE_KEY` as GitHub Actions repository variables (Settings → Secrets and variables → Actions → Variables), and rebuild the APK.
 - Never embed service-role keys or reuse deleted QA credentials.
-- The bootstrap invitation is issued out-of-band by a trusted operator, stored as SHA-256 in Supabase and is single-use with an expiration. Never add it to GitHub.
-- Ensure the production Supabase Auth email confirmation service works with your intended email addresses.
+- The approved, verified owner explicitly requests an OTP. Supabase Auth generates and emails the one-time secret; SOCYTO does not log or store its plaintext. Requests expire in 10 minutes, with at most 5 verification attempts.
+- **External configuration required:** In Supabase Authentication > Email Templates > Magic Link, include `{{ .Token }}` in the email body, so users receive a numeric OTP rather than only a magic link. Verify actual inbox delivery. Do not mistake an Auth `mail.send` log for inbox confirmation.
 
 ## 1. Create the first Super Admin (fresh account)
 1. Open SOCYTO, choose Create account with an email you control, set a password.
 2. Verify your email from the confirmation message.
 3. Sign in with your new account. It must initially show **Awaiting access** (not automatic Super Admin).
-4. Find **One-time administrator activation**, enter the one-time setup code securely.
-5. Tap **Activate using invitation**. The database must atomically mark the code claimed and assign the verified account to `platform_administrators`.
-6. The dashboard should show **Super Admin**. The same code cannot be reused.
+4. In **One-time administrator activation**, tap **Request activation code by email** explicitly. Only the permanently approved and verified owner identity is eligible.
+5. Check the approved email, type the numeric code, then tap **Verify code and activate**. Repeated requests are blocked while a challenge is pending.
+6. The backend must validate the one-time code before atomically granting `platform_administrators`. The dashboard then shows **Super Admin**; reused or expired codes fail.
+7. If the already-activated approved owner signs in, no new code is generated.
 
 ## 2. Register a firm using a real verified account
 1. Sign out of Super Admin. Create a *separate* Firm Admin account using its own controlled email and password.
@@ -41,7 +42,7 @@
 4. Edits by Firm Admin without another publish must remain invisible to the client.
 
 ## Troubleshooting and acceptance
-- No invitation: request a new expiring one-time code from the trusted database administrator.
+- No email OTP: confirm the Magic Link template contains `{{ .Token }}`, Supabase Auth email delivery is enabled, and check the email provider / spam folder. A pending code is not resent automatically.
 - Unverified account: check Supabase Auth email confirmation.
 - Firm Admin cannot enter: check firm account **active** and verified membership.
 - Client cannot enter: ensure login was provisioned and one-time password replaced.
