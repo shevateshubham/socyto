@@ -8,6 +8,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    # Public client configuration for the SOCYTO production deployment.
+    # These are NOT credentials or service-role secrets. App-side RLS is enforced by Supabase.
+    # Keep deployment configuration in CI rather than embedding fallbacks in Kotlin source.
+    env:
+      SOCYTO_SUPABASE_URL: https://ycpwqdukfsmxrfntsfyd.supabase.co
+      SOCYTO_SUPABASE_PUBLISHABLE_KEY: sb_publishable_TO8PiJySbPKM9_bqgXhGbQ_B2Vs_SXZ
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
