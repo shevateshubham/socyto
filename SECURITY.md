@@ -44,3 +44,13 @@ Deny by default. Never trust UI role checks as an authorization boundary. Treat 
 - Mobile sign-up requires Supabase SMS delivery and OTP verification, which must be confirmed with a working provider before being advertised as available.
 - The bootstrap RPC allows Super Admin activation only after verified email OR verified phone AND presentation of a valid, unexpired, single-use invitation. It must not create an invitation automatically from public signup.
 - Do not turn on `phone_confirm=true` or `email_confirm=true` for unverified user-supplied identities merely to bypass delivery issues.
+
+## Restricted Co-Admin delegation
+- The permanent Primary Super Admin remains the only record in `platform_administrators` and the only identity in `platform_owner_identity_lock`. Never relax the single-owner trigger for delegated administrators.
+- Delegated administrators are stored separately in `platform_coadmins`. Only the Primary Owner can call the authenticated `coadmin-management` Edge Function to issue, cancel, list or revoke invitations.
+- Invites use CSPRNG 256-bit one-time codes; only their SHA-256 digests are stored. The invited user's **verified** email or phone must match exactly; invitations expire after 24 hours and cannot be used twice.
+- Co-Admin invitation codes are shown once to the Primary Owner for private transfer. There is no assumed email/SMS sending, no mock identity and no hardcoded shared password.
+- Co-Admin access to firms is enforced on every privileged call via `is_platform_operator()` and the active `platform_coadmins` row. Revoked users have no operational authority even with an unexpired JWT.
+- Co-Admins cannot manage Co-Admins, claim primary ownership, generate Primary Super Admin codes, or change the owner-contact lock.
+- Firm-level client/project editing continues to belong to the firm's own business administrator. Delegation does not grant access to material receipts or unpublished client requirements across tenants.
+- A passing compilation is not a substitute for live distinct-user privilege boundary tests. Before rollout, verify invite expiry, identity mismatch, cancellation, reuse, revocation, firm status changes, and client project isolation.

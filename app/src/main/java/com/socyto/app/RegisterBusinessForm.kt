@@ -16,7 +16,7 @@ import com.socyto.app.data.*
 @Composable
 fun RegisterBusinessForm(session: Session, api: SocytoApi, onRegistered: () -> Unit) {
     var name by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
+    var contact by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
     var credentials by remember { mutableStateOf<ClientTemporaryCredentials?>(null) }
@@ -37,7 +37,7 @@ fun RegisterBusinessForm(session: Session, api: SocytoApi, onRegistered: () -> U
     SocytoStepCard(
         "STEP 01 / FIRM DETAILS",
         "Who will manage this workspace?",
-        "Only the firm name and a registered mobile number are required."
+        "Only the firm name and one contact method are required."
     ) {
         OutlinedTextField(
             value = name, onValueChange = { name = it }, modifier = Modifier.fillMaxWidth(),
@@ -46,12 +46,11 @@ fun RegisterBusinessForm(session: Session, api: SocytoApi, onRegistered: () -> U
             supportingText = { Text("As it should appear on the firm's workspace") }
         )
         OutlinedTextField(
-            value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth(),
-            label = { Text("Mobile number") }, singleLine = true,
-            placeholder = { Text("+91…") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-            isError = phone.isNotBlank() && !AccountIdentifiers.validPhone(phone),
-            supportingText = { Text("Include country code; used for secure account recovery") }
+            value = contact, onValueChange = { contact = it }, modifier = Modifier.fillMaxWidth(),
+            label = { Text("Mobile or email") }, singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+            isError = contact.isNotBlank() && !AccountIdentifiers.validPhone(contact) && !AccountIdentifiers.validEmail(contact),
+            supportingText = { Text("Use a reachable contact for verification and account recovery") }
         )
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .52f),
@@ -68,14 +67,14 @@ fun RegisterBusinessForm(session: Session, api: SocytoApi, onRegistered: () -> U
             onClick = {
                 saving = true
                 message = ""
-                api.async({ api.provisionFirmAccount(session, name, phone.trim()) }) { result ->
+                api.async({ api.provisionFirmAccount(session, name, contact.trim()) }) { result ->
                     saving = false
-                    result.onSuccess { credentials = it; name = ""; phone = "" }
+                    result.onSuccess { credentials = it; name = ""; contact = "" }
                         .onFailure { message = it.message ?: "Unable to create firm account." }
                 }
             },
             enabled = !saving && ProjectInputRules.validName(name) &&
-                AccountIdentifiers.validPhone(phone),
+                (AccountIdentifiers.validPhone(contact) || AccountIdentifiers.validEmail(contact)),
             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
         ) { Text(if (saving) "Creating firm…" else "Create firm and generate access") }
         if (saving) LinearProgressIndicator(Modifier.fillMaxWidth())

@@ -53,3 +53,18 @@ Acceptance criteria implemented; security checks covered; tests/build run or lim
 - Follow `.agents/skills/account-onboarding/SKILL.md` and `.agents/skills/responsive-ui-audit/SKILL.md` for login changes.
 - Preserve one email/mobile/account-ID login field and separate verified bootstrap; never assign the first signup Super Admin automatically.
 - Acceptance includes mobile/email input validation, confirmed phone OTP, wrong-password rejection, correct-account routing, empty database and safe first-login password changes.
+
+## Verified contact onboarding and Super Admin delivery
+- Registration for firms and clients must accept either email or mobile as one field; keep temporary F/C IDs and first-login password-change gates.
+- Supabase's verification email must be requested by the normal signup flow; never set a real user-provided email to confirmed without proof.
+- Super Admin activation messages are generated only after verified email/phone and trusted preapproval. Codes are single-use, bound to an Auth user and expire after 30 minutes.
+- Delivery requires a configured, trusted email/SMS provider. Never claim delivery when none is configured or fallback to granting admin on ordinary verification.
+- No user-provided metadata or contact string may grant privileged roles. Use `platform_owner_authorizations`, RLS and server-validated Auth claims.
+- Read `docs/VERIFIED_CONTACT_ONBOARDING.md` before changing these flows. Verify both email-only and mobile-only client accounts using actual connected delivery providers before marking production complete.
+
+## Activation-code issuance invariant
+- Never generate or send a Super Admin bootstrap invitation during normal signup, email/SMS verification, automatic login, session restoration, or page refresh.
+- Only the explicit in-app owner activation request may issue a code, after verified-contact preapproval and server authorization.
+- Enforce at most one outstanding code in the database with a unique index; an active one must not be rotated or resent.
+- Expired codes may be retired during a later explicit request, never automatically replaced.
+- Test ordinary sign-in generates zero invitations, repeated request returns no new code, non-owner request fails, expired code requires deliberate re-request, and reused code fails.

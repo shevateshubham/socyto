@@ -77,6 +77,7 @@ private fun SocytoApp() {
     var showManagement by remember { mutableStateOf(false) }
     var showBusinessRegistration by remember { mutableStateOf(false) }
     var bootstrapCode by remember { mutableStateOf("") }
+    var coAdminCode by remember { mutableStateOf("") }
     var projectSection by remember { mutableIntStateOf(0) }
     var workspaceTab by remember { mutableStateOf("overview") }
     var projects by remember { mutableStateOf(emptyList<ProjectSummary>()) }
@@ -89,9 +90,9 @@ private fun SocytoApp() {
     fun loadWorkspace(authenticated: Session, accountScope: AccountScope) {
         busy = true
         api.async({
-            val businessList = if (accountScope is AccountScope.PlatformAdmin) api.businesses(authenticated) else emptyList()
+            val businessList = if (accountScope == AccountScope.PlatformAdmin || accountScope == AccountScope.CoAdmin) api.businesses(authenticated) else emptyList()
             val projectList = when (accountScope) {
-                AccountScope.PlatformAdmin -> emptyList()
+                AccountScope.PlatformAdmin, AccountScope.CoAdmin -> emptyList()
                 is AccountScope.BusinessAdmin -> api.projects(authenticated, accountScope.business.id)
                 AccountScope.Client -> api.projects(authenticated)
                 AccountScope.Unassigned -> emptyList()
@@ -99,7 +100,7 @@ private fun SocytoApp() {
             val businessId = when (accountScope) {
                 is AccountScope.BusinessAdmin -> accountScope.business.id
                 AccountScope.Client -> projectList.firstOrNull()?.businessId
-                AccountScope.PlatformAdmin, AccountScope.Unassigned -> null
+                AccountScope.PlatformAdmin, AccountScope.CoAdmin, AccountScope.Unassigned -> null
             }
             Triple(businessList, projectList, businessId?.let { api.branding(authenticated, it) })
         }) { result ->
@@ -250,8 +251,10 @@ private fun SocytoApp() {
                         message = ""
                         api.async({
                             val authenticated = api.signIn(email.trim(), password)
-                            authenticated to if (authenticated.requiresPasswordChange)
+                            val accountScope = if (authenticated.requiresPasswordChange)
                                 AccountScope.Unassigned else api.accountScope(authenticated)
+                            // Only explicit owner action can request a new activation code.
+                            authenticated to accountScope
                         }) { result ->
                             busy = false
                             result.onSuccess { (authenticated, accountScope) ->
@@ -281,7 +284,8 @@ private fun SocytoApp() {
                         Text("WORKSPACE", color = MaterialTheme.colorScheme.secondary,
                             style = MaterialTheme.typography.labelSmall)
                         Text(when (val role = scope) {
-                            AccountScope.PlatformAdmin -> "Super Admin"
+                            AccountScope.PlatformAdmin -> "Primary Super Admin"
+                            AccountScope.CoAdmin -> "Co-Admin"
                             is AccountScope.BusinessAdmin -> role.business.name
                             AccountScope.Client -> "My projects"
                             AccountScope.Unassigned -> "Awaiting access"
@@ -313,7 +317,7 @@ private fun SocytoApp() {
                     SocytoStepCard(
                         "One-time administrator activation",
                         "Activate Super Admin",
-                        "Only use an invitation issued by your SOCYTO database administrator. Signing up alone never grants administrator permissions."
+                        "Activation codes are sent only to pre-approved platform owners after email or mobile verification. Signing up alone never grants administrator permissions."
                     ) {
                         OutlinedTextField(
                             bootstrapCode, { bootstrapCode = it.trim() },
@@ -343,6 +347,53 @@ private fun SocytoApp() {
                             }
                         ) { Text("Activate using invitation") }
                     }
+                    OutlinedButton(
+                        enabled = !busy,
+                        onClick = {
+                            busy = true
+                            message = ""
+                            api.async({ api.requestPlatformActivationCode(authenticated) }) { result ->
+                                busy = false
+                                result.onSuccess { message = it }
+                                    .onFailure {
+                                        message = it.message ?: "Unable to request activation code."
+                                    }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    ) { Text("Send activation code to verified email or mobile") }
+                    SocytoStepCard(
+                        "CO-ADMIN INVITATION",
+                        "Activate Co-Admin access",
+                        "If the Primary Super Admin invited you, verify the same email or mobile and enter the private invitation code."
+                    ) {
+                        OutlinedTextField(
+                            coAdminCode, { coAdminCode = it.trim().lowercase() },
+                            label = { Text("Co-Admin invitation code") },
+                            singleLine = true, modifier = Modifier.fillMaxWidth(),
+                            visualTransformation = PasswordVisualTransformation()
+                        )
+                        Button(
+                            enabled = !busy && Regex("^[a-f0-9]{64}$").matches(coAdminCode),
+                            onClick = {
+                                busy = true
+                                message = ""
+                                api.async({
+                                    api.claimCoAdminInvitation(authenticated, coAdminCode)
+                                    api.accountScope(authenticated)
+                                }) { result ->
+                                    busy = false
+                                    result.onSuccess {
+                                        coAdminCode = ""
+                                        scope = it
+                                        loadWorkspace(authenticated, it)
+                                    }.onFailure {
+                                        message = it.message ?: "Co-Admin invitation could not be activated."
+                                    }
+                                }
+                            }
+                        ) { Text("Activate Co-Admin access") }
+                    }
                     OutlinedButton(onClick = {
                         busy = true
                         api.async({ api.accountScope(authenticated) }) { result ->
@@ -353,7 +404,7 @@ private fun SocytoApp() {
                             }.onFailure { message = it.message ?: "Unable to check access." }
                         }
                     }, enabled = !busy) { Text("Check access again") }
-                } else if (scope == AccountScope.PlatformAdmin && editingBranding && selectedBusiness != null) {
+                } else if ((scope == AccountScope.PlatformAdmin || scope == AccountScope.CoAdmin) && editingBranding && selectedBusiness != null) {
                     val firm = selectedBusiness!!
                     BusinessBrandEditor(
                         business = firm,
@@ -370,6 +421,9 @@ private fun SocytoApp() {
                     )
                 } else {
                 if (scope == AccountScope.PlatformAdmin) {
+                    SocytoCoAdminManagement(authenticated, api)
+                }
+                if (scope == AccountScope.PlatformAdmin || scope == AccountScope.CoAdmin) {
                     SocytoMetric("Registered businesses", businesses.size.toString(),
                         "Independent tenant workspaces")
                     SocytoSectionHeader(
@@ -419,7 +473,7 @@ private fun SocytoApp() {
                                     busy = true
                                     api.async({ api.setBusinessStatus(authenticated, business.id, "active") }) { result ->
                                         busy = false
-                                        result.onSuccess { loadWorkspace(authenticated, AccountScope.PlatformAdmin) }
+                                        result.onSuccess { loadWorkspace(authenticated, scope ?: AccountScope.Unassigned) }
                                             .onFailure { message = it.message ?: "Could not activate business." }
                                     }
                                 }, enabled = !busy) { Text("Activate") }
@@ -429,7 +483,7 @@ private fun SocytoApp() {
                                     busy = true
                                     api.async({ api.setBusinessStatus(authenticated, business.id, "suspended") }) { result ->
                                         busy = false
-                                        result.onSuccess { loadWorkspace(authenticated, AccountScope.PlatformAdmin) }
+                                        result.onSuccess { loadWorkspace(authenticated, scope ?: AccountScope.Unassigned) }
                                             .onFailure { message = it.message ?: "Could not suspend business." }
                                     }
                                 }, enabled = !busy) { Text("Suspend") }
@@ -450,7 +504,7 @@ private fun SocytoApp() {
                                     api = api,
                                     onRegistered = {
                                         showBusinessRegistration = false
-                                        loadWorkspace(authenticated, AccountScope.PlatformAdmin)
+                                        loadWorkspace(authenticated, scope ?: AccountScope.Unassigned)
                                     }
                                 )
                             }
@@ -466,7 +520,7 @@ private fun SocytoApp() {
                 }
                 if (selectedProject == null && workspaceTab == "overview") {
                     when (scope) {
-                        AccountScope.PlatformAdmin -> {
+                        AccountScope.PlatformAdmin, AccountScope.CoAdmin -> {
                             SocytoEditorialHeader("PLATFORM ADMINISTRATION", "Your business network",
                                 "Independent practices, brought together under one secure platform.")
                             SocytoArchitecturalHero(
@@ -536,7 +590,7 @@ private fun SocytoApp() {
                 }
                 if (selectedProject == null) {
                     val shouldShowProjects = when (scope) {
-                        AccountScope.PlatformAdmin -> selectedBusiness != null
+                        AccountScope.PlatformAdmin, AccountScope.CoAdmin -> selectedBusiness != null
                         is AccountScope.BusinessAdmin ->
                             workspaceTab == "overview" || workspaceTab == "projects"
                         AccountScope.Client ->

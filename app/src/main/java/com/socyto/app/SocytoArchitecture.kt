@@ -173,6 +173,9 @@ fun SocytoRoleNavigation(
     onChange: (String) -> Unit
 ) {
     val tabs = when (scope) {
+        AccountScope.CoAdmin -> listOf(
+            Triple("overview", "Overview", Icons.Filled.Home),
+            Triple("businesses", "Businesses", Icons.Filled.Business))
         AccountScope.PlatformAdmin -> listOf(
             Triple("overview", "Overview", Icons.Filled.Home),
             Triple("businesses", "Businesses", Icons.Filled.Business))

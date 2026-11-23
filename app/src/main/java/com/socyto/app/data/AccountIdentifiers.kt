@@ -15,7 +15,20 @@ object AccountIdentifiers {
     fun isAccountCode(input: String): Boolean =
         accountCode.matches(input.trim().uppercase(Locale.ROOT))
 
-    fun validPhone(input: String): Boolean = mobile.matches(input.trim())
+    /** Default to India only for an unambiguous 10-digit Indian mobile number. */
+    fun normalizedPhone(input: String): String {
+        val trimmed = input.trim()
+        return if (Regex("^[6-9][0-9]{9}$").matches(trimmed)) "+91" + trimmed else trimmed
+    }
+
+    fun validPhone(input: String): Boolean = mobile.matches(normalizedPhone(input))
+
+    fun normalizedContact(input: String): String {
+        val trimmed = input.trim()
+        return if (validPhone(trimmed)) normalizedPhone(trimmed)
+        else if (validEmail(trimmed)) trimmed.lowercase(Locale.ROOT)
+        else trimmed
+    }
 
     fun validEmail(input: String): Boolean =
         input.trim().length <= 254 && email.matches(input.trim())
