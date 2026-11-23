@@ -588,10 +588,15 @@ class SocytoApi {
                 } else ""
                 val message = when {
                     onboardingError.isNotBlank() -> onboardingError
-                    authLogin && status == 400 ->
-                        "Email or password is incorrect. Check your credentials and try again."
-                    authLogin && status == 429 ->
+                    (authLogin && status == 400) ||
+                        (path == "/functions/v1/account-login" && status == 401) ->
+                        "Invalid mobile, email, account ID or password."
+                    (authLogin || path == "/functions/v1/account-login") && status == 429 ->
                         "Too many sign-in attempts. Please try again later."
+                    path == "/auth/v1/signup" && status >= 400 ->
+                        "Registration failed. Check your details and email/SMS provider availability."
+                    path == "/auth/v1/verify" && status >= 400 ->
+                        "Verification code expired or incorrect. Try again."
                     status == 401 || status == 403 ->
                         "Access denied. Check account permissions."
                     else -> "Service request failed (HTTP $status)."
