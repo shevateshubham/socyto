@@ -44,7 +44,7 @@ fun SocytoFlootLogin(
     onSignUp: (String, String) -> Unit
 ) {
     val configuration = LocalConfiguration.current
-    val landscape = configuration.screenWidthDp > configuration.screenHeightDp
+    val landscape = configuration.screenWidthDp > configuration.screenHeightDp && configuration.screenWidthDp >= 740
     val compact = configuration.screenWidthDp < 370
     val color = MaterialTheme.colorScheme
     val primary = color.primary
@@ -205,15 +205,17 @@ private fun FlootCredentialCard(
                     fontWeight = FontWeight.Bold,
                     color = color.secondary)
             }
-            Text(if (signingUp) "Create your workspace access."
-                 else "Make room for great work.",
+            Text(if (recovering) "Recover access."
+                 else if (signingUp) "Set up platform access."
+                 else "Welcome back.",
                 style = (if (landscape) MaterialTheme.typography.titleMedium
                     else MaterialTheme.typography.headlineSmall)
                     .copy(fontFamily = FontFamily.Serif),
                 maxLines = 2, color = color.primary)
             if (!landscape) Text(
-                if (signingUp) "Email registration is reserved for initial platform-administrator setup. Firm and client accounts are created by their administrators."
-                    else "Use the F/C login ID shared with you, or your existing administrator email.",
+                if (recovering) "Confirm your registered mobile number before changing your password."
+                    else if (signingUp) "Super Admin setup uses a verified email. Firms and clients receive separate IDs."
+                    else "Use your firm ID, client ID or administrator email to sign in.",
                 style = MaterialTheme.typography.bodySmall,
                 color = color.onSurfaceVariant
             )
@@ -225,7 +227,9 @@ private fun FlootCredentialCard(
                     style = MaterialTheme.typography.titleMedium)
                 OutlinedTextField(recoveryPhone, { recoveryPhone = it },
                     label = { Text("Registered mobile (+91...)") },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    supportingText = { Text("Use the number registered when the account was created") })
                 if (recoveryRequested) {
                     OutlinedTextField(recoveryOtp, { recoveryOtp = it },
                         label = { Text("SMS verification code") },
@@ -274,15 +278,16 @@ private fun FlootCredentialCard(
                 if (recoveryBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
                 if (recoveryMessage.isNotBlank()) Text(recoveryMessage,
                     style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { recovering = false; recoveryRequested = false },
+                TextButton(onClick = { recovering = false; recoveryRequested = false; recoveryOtp = ""; recoveryPassword = ""; recoveryMessage = "" },
                     modifier = Modifier.fillMaxWidth()) { Text("Back to sign in") }
             } else {
             OutlinedTextField(
                 value = email, onValueChange = { email = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(if (signingUp) "Email address" else "Firm ID / Client ID / admin email") },
+                label = { Text(if (signingUp) "Administrator email" else "Login ID or administrator email") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                keyboardOptions = KeyboardOptions(keyboardType = if (signingUp) KeyboardType.Email else KeyboardType.Text),
+                supportingText = { Text(if (signingUp) "Email verification required" else "Firm IDs begin F; client IDs begin C") },
                 shape = RoundedCornerShape(12.dp)
             )
             if (email.isNotBlank() && email.contains("@")) {
@@ -331,9 +336,9 @@ private fun FlootCredentialCard(
                     contentDescription = null, modifier = Modifier.size(18.dp))
             }
             TextButton(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 onClick = { signingUp = !signingUp }
-            ) { Text(if (signingUp) "Already registered? Sign in" else "Create an account") }
+            ) { Text(if (signingUp) "Back to sign in" else "Set up Super Admin account") }
             if (!signingUp) {
                 TextButton(onClick = { recovering = true },
                     modifier = Modifier.fillMaxWidth()) { Text("Forgot password? Reset using mobile") }
