@@ -33,6 +33,7 @@ sleep 6
 
 # On busy CI emulators, Pixel Launcher can show a SYSTEM-level ANR modal over our
 # otherwise correctly rendered app. Dismiss its Wait action, then capture the app.
+dismiss_launcher_overlay() {
 python3 - <<'PY'
 import re, subprocess, time, xml.etree.ElementTree as ET
 def adb(*args):
@@ -60,12 +61,29 @@ for attempt in range(4):
 else:
     raise SystemExit('Repeated system ANR popups obscured SOCYTO')
 PY
+}
 
 capture() {
     local label="$1"
-    adb exec-out screencap -p > "$OUT/${label}.png"
-    adb shell uiautomator dump "/sdcard/${label}.xml" > /dev/null
-    adb pull "/sdcard/${label}.xml" "$OUT/${label}-ui.xml" > /dev/null
+    local attempt
+    for attempt in 1 2 3 4; do
+        dismiss_launcher_overlay
+        adb exec-out screencap -p > "$OUT/${label}.png"
+        adb shell uiautomator dump "/sdcard/${label}.xml" > /dev/null
+        adb pull "/sdcard/${label}.xml" "$OUT/${label}-ui.xml" > /dev/null
+        if ! grep -q "isn't responding" "$OUT/${label}-ui.xml" && ! grep -q 'is not responding' "$OUT/${label}-ui.xml"; then
+            return 0
+        fi
+        echo "System launcher ANR interrupted screenshot ${label}; retry ${attempt}" >&2
+        if [[ "$attempt" -ge 2 ]]; then
+            # Launcher is not part of our app; prevent its stuck background
+            # process from repeatedly obscuring screenshots.
+            adb shell am force-stop com.google.android.apps.nexuslauncher || true
+        fi
+        sleep 2
+    done
+    echo "Unable to obtain an unobscured SOCYTO screenshot: ${label}" >&2
+    return 1
 }
 capture "01-login-initial"
 adb shell wm size > "$OUT/display-config.txt"
