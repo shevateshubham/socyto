@@ -16,6 +16,20 @@ function temporaryPassword() {
   return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
 }
 
+
+/** Codes are display identifiers only. UUIDs and verified membership remain authority. */
+function newAccountCode(prefix: "F" | "C") {
+  const random = new Uint32Array(1);
+  crypto.getRandomValues(random);
+  return prefix + (random[0] % 1_000_000_000).toString().padStart(9, "0");
+}
+function validPhone(value: unknown): value is string {
+  return typeof value === "string" && /^\\+[1-9][0-9]{7,14}$/.test(value);
+}
+function validName(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length >= 2 && value.trim().length <= 80;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return reply(405, { error: "Method not allowed." });
   if (!url || !secret || !publicKey) return reply(503, { error: "Authentication service not configured." });
@@ -56,6 +70,95 @@ Deno.serve(async (req: Request) => {
     });
     if (error) return reply(500, { error: "Password update failed; retry securely." });
     return reply(200, { success: true, message: "Password updated. Sign in with your new password." });
+  }
+
+
+  if (action === "provision_firm" || action === "provision_client_account") {
+    const isFirm = action === "provision_firm";
+    const name = isFirm ? body.firm_name : body.client_name;
+    const phone = body.phone;
+    if (!validName(name) || !validPhone(phone)) {
+      return reply(400, { error: "Provide a name (2–80 characters) and phone in international format, e.g. +919876543210." });
+    }
+    let firmId: string | undefined;
+    if (isFirm) {
+      const { data: platformAdmin, error } = await admin.from("platform_administrators")
+        .select("user_id").eq("user_id", identity.user.id).maybeSingle();
+      if (error || !platformAdmin) return reply(403, { error: "Super Admin access required." });
+    } else {
+      if (typeof body.business_id !== "string" || !uuid.test(body.business_id)) {
+        return reply(400, { error: "Invalid firm." });
+      }
+      firmId = body.business_id;
+      const { data: member, error } = await admin.from("business_members")
+        .select("membership_id").eq("business_id", firmId)
+        .eq("user_id", identity.user.id).eq("member_role", "business_admin").maybeSingle();
+      if (error || !member) return reply(403, { error: "Firm Admin access required." });
+      const { data: firm, error: firmError } = await admin.from("businesses")
+        .select("account_status").eq("business_id", firmId).maybeSingle();
+      if (firmError || firm?.account_status !== "active") {
+        return reply(403, { error: "Firm is not active." });
+      }
+    }
+    // Every account gets its own Auth identity. Reused phone numbers are rejected
+    // by Auth, never silently connected to a pre-existing user.
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const code = newAccountCode(isFirm ? "F" : "C");
+      const email = code.toLowerCase() + "@login.socyto.invalid";
+      const password = temporaryPassword();
+      const { data: created, error: createError } = await admin.auth.admin.createUser({
+        email, password, email_confirm: true, phone, phone_confirm: false,
+        app_metadata: { socyto_password_reset_required: true, socyto_account_type: isFirm ? "firm" : "client" }
+      });
+      if (createError || !created.user) {
+        if (createError?.message?.toLowerCase().includes("already") ||
+            createError?.code === "email_exists") {
+          // Existing phone: changing someone else's credentials is prohibited.
+          return reply(409, { error: "This phone number is already registered. Contact the administrator for account recovery." });
+        }
+        return reply(503, { error: "Could not provision account. Check Auth phone configuration." });
+      }
+      let createdRecordId: string | undefined;
+      try {
+        if (isFirm) {
+          const { data: business, error } = await admin.from("businesses")
+            .insert({ business_name: name.trim(), business_type: "interior_design",
+                      contact_phone: phone, firm_code: code, account_status: "active" })
+            .select("business_id").single();
+          if (error || !business) throw error ?? Error("Firm insert failed");
+          createdRecordId = business.business_id;
+          const { error: membershipError } = await admin.from("business_members")
+            .insert({ business_id: createdRecordId, user_id: created.user.id, member_role: "business_admin" });
+          if (membershipError) throw membershipError;
+          const { error: brandingError } = await admin.from("business_branding")
+            .insert({ business_id: createdRecordId, display_name: name.trim() });
+          if (brandingError) throw brandingError;
+        } else {
+          const { data: client, error } = await admin.from("clients")
+            .insert({ business_id: firmId, client_name: name.trim(), client_phone: phone,
+                      client_code: code, login_user_id: created.user.id })
+            .select("client_id").single();
+          if (error || !client) throw error ?? Error("Client insert failed");
+          createdRecordId = client.client_id;
+        }
+        return reply(201, {
+          success: true, login_id: code, temporary_password: password,
+          record_id: createdRecordId, requires_password_change: true
+        });
+      } catch (error) {
+        // Undo partially created provisioned resources; never leave a working orphan login.
+        if (createdRecordId && isFirm) {
+          await admin.from("businesses").delete().eq("business_id", createdRecordId);
+        }
+        if (createdRecordId && !isFirm) {
+          await admin.from("clients").delete().eq("client_id", createdRecordId).eq("business_id", firmId!);
+        }
+        await admin.auth.admin.deleteUser(created.user.id);
+        if (String(error).includes("23505") || String(error).includes("duplicate key")) continue;
+        return reply(409, { error: "Unable to finish onboarding. No credentials were issued." });
+      }
+    }
+    return reply(503, { error: "Unable to allocate a unique account ID. Try again." });
   }
 
   if (action !== "provision_client") return reply(400, { error: "Unsupported action." });
