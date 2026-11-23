@@ -3,10 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
-val socytoBackendUrl = providers.environmentVariable("SOCYTO_SUPABASE_URL").orNull?.takeIf { it.isNotBlank() }
-    ?: "https://ycpwqdukfsmxrfntsfyd.supabase.co"
-val socytoPublishableKey = providers.environmentVariable("SOCYTO_SUPABASE_PUBLISHABLE_KEY").orNull?.takeIf { it.isNotBlank() }
-    ?: "sb_publishable_TO8PiJySbPKM9_bqgXhGbQ_B2Vs_SXZ"
+// Public client configuration comes from CI or the local build environment.
+// Never embed an environment-specific production endpoint or key in source.
+val socytoBackendUrl = providers.environmentVariable("SOCYTO_SUPABASE_URL").orNull.orEmpty().trim()
+val socytoPublishableKey = providers.environmentVariable("SOCYTO_SUPABASE_PUBLISHABLE_KEY").orNull.orEmpty().trim()
 
 android {
     buildFeatures { buildConfig = true }
@@ -46,8 +46,15 @@ tasks.register("verifyProductionBackend") {
     doLast {
         val url = socytoBackendUrl
         val key = socytoPublishableKey
-        check(url == "https://ycpwqdukfsmxrfntsfyd.supabase.co" && key.startsWith("sb_publishable_")) {
-            "Release blocked: configure the real SOCYTO Supabase URL and publishable key."
+        check(url.startsWith("https://") && runCatching {
+            val parsed = java.net.URI(url)
+            parsed.host?.endsWith(".supabase.co") == true && parsed.userInfo == null &&
+                parsed.query == null && parsed.fragment == null
+        }.getOrDefault(false)) {
+            "Release blocked: supply SOCYTO_SUPABASE_URL as a valid HTTPS Supabase project URL."
+        }
+        check(key.startsWith("sb_publishable_") && key.length > "sb_publishable_".length) {
+            "Release blocked: supply SOCYTO_SUPABASE_PUBLISHABLE_KEY through the build environment."
         }
         check(!key.startsWith("sb_secret_") && !key.startsWith("service_role")) {
             "Release blocked: privileged backend secrets must never be embedded in Android."
