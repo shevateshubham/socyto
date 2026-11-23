@@ -138,7 +138,7 @@ private fun SocytoApp() {
     Scaffold(
         containerColor = brandBackground,
         topBar = {
-            if (session != null) Surface(color = brandPrimary, shadowElevation = 3.dp) {
+            if (session != null && session?.requiresPasswordChange != true) Surface(color = brandPrimary, shadowElevation = 3.dp) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -185,7 +185,7 @@ private fun SocytoApp() {
             }
         },
         bottomBar = {
-            if (session != null && scope != null && scope != AccountScope.Unassigned &&
+            if (session != null && session?.requiresPasswordChange != true && scope != null && scope != AccountScope.Unassigned &&
                 selectedProject == null && !editingBranding && !isLandscape) {
                 SocytoRoleNavigation(scope!!, workspaceTab) { tab ->
                     workspaceTab = tab
@@ -227,17 +227,27 @@ private fun SocytoApp() {
                         message = ""
                         api.async({
                             val authenticated = api.signIn(email.trim(), password)
-                            authenticated to api.accountScope(authenticated)
+                            authenticated to if (authenticated.requiresPasswordChange)
+                                AccountScope.Unassigned else api.accountScope(authenticated)
                         }) { result ->
                             busy = false
                             result.onSuccess { (authenticated, accountScope) ->
                                 session = authenticated
                                 scope = accountScope
                                 workspaceTab = "overview"
-                                loadWorkspace(authenticated, accountScope)
+                                if (!authenticated.requiresPasswordChange) {
+                                    loadWorkspace(authenticated, accountScope)
+                                }
                             }.onFailure { message = it.message ?: "Sign-in failed." }
                         }
                     })
+            } else if (session?.requiresPasswordChange == true) {
+                SocytoFirstLoginPasswordChange(session!!, api) {
+                    session = null
+                    scope = null
+                    branding = null
+                    message = "Your password is updated. Sign in with your new password."
+                }
             } else {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -442,8 +452,8 @@ private fun SocytoApp() {
                                     api = api,
                                     onProjectCreated = { created ->
                                         projects = listOf(created) + projects
-                                        selectedProject = created
-                                        workspaceTab = "projects"
+                                        // Keep the onboarding form visible until the admin has
+                                        // copied the one-time credentials for the client.
                                         message = ""
                                     }
                                 )
