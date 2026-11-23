@@ -48,3 +48,8 @@ Acceptance criteria implemented; security checks covered; tests/build run or lim
 - Every major screen must be inspected at compact, standard, tablet, portrait, landscape, 1.5x+ font and keyboard-visible sizes. Check both visual rendering and accessible actionable controls.
 - UI colors are centralized as tokens and user-firm branding remains data-driven. No new hardcoded sample projects, login credentials, fake records or decorative disabled controls.
 - A passing Gradle compilation is insufficient to claim responsive UI validated: review emulator screenshots or device screenshots and report evidence/limitations.
+
+## Unified identifier and zero-state tests
+- Follow `.agents/skills/account-onboarding/SKILL.md` and `.agents/skills/responsive-ui-audit/SKILL.md` for login changes.
+- Preserve one email/mobile/account-ID login field and separate verified bootstrap; never assign the first signup Super Admin automatically.
+- Acceptance includes mobile/email input validation, confirmed phone OTP, wrong-password rejection, correct-account routing, empty database and safe first-login password changes.
