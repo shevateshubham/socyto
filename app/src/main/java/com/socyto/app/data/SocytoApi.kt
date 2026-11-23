@@ -78,6 +78,29 @@ class SocytoApi {
         }
     }
 
+    /** Real server-side firm identity provisioning: no app-generated credentials. */
+    fun provisionFirmAccount(session: Session, name: String, phone: String): ClientTemporaryCredentials {
+        require(ProjectInputRules.validName(name) && AccountIdentifiers.validPhone(phone))
+        val result = request("POST", "/functions/v1/client-onboarding", session,
+            JSONObject().put("action", "provision_firm")
+                .put("firm_name", name.trim()).put("phone", phone.trim()))
+        return ClientTemporaryCredentials(
+            result.getString("login_id"), result.getString("temporary_password"))
+    }
+
+    /** A firm administrator provisions a client without requiring a personal email address. */
+    fun provisionClientAccount(
+        session: Session, businessId: String, name: String, phone: String
+    ): Pair<ClientSummary, ClientTemporaryCredentials> {
+        require(ProjectInputRules.validName(name) && AccountIdentifiers.validPhone(phone))
+        val result = request("POST", "/functions/v1/client-onboarding", session,
+            JSONObject().put("action", "provision_client_account")
+                .put("business_id", businessId)
+                .put("client_name", name.trim()).put("phone", phone.trim()))
+        return ClientSummary(result.getString("record_id"), name.trim()) to
+            ClientTemporaryCredentials(result.getString("login_id"), result.getString("temporary_password"))
+    }
+
     /** Only a platform administrator can register a new firm. */
     fun registerFirm(
         session: Session, businessName: String, administratorEmail: String, businessType: String
@@ -126,9 +149,42 @@ class SocytoApi {
                 .put("target_client_id", clientId))
     }
 
+    /** Phone OTP sends only to a previously registered number; it never creates an account. */
+    fun sendRecoveryOtp(phone: String) {
+        require(AccountIdentifiers.validPhone(phone))
+        request("POST", "/auth/v1/otp", null,
+            JSONObject().put("phone", phone.trim()).put("create_user", false)
+                .put("channel", "sms"))
+    }
+
+    /** SMS confirmation is performed by Supabase Auth, not an app-side comparison. */
+    fun recoverPasswordWithOtp(phone: String, otp: String, newPassword: String) {
+        require(AccountIdentifiers.validPhone(phone))
+        require(Regex("^[0-9]{6,8}$").matches(otp.trim()))
+        require(newPassword.length in 12..128 && newPassword.any { it.isLetter() } &&
+            newPassword.any { it.isDigit() })
+        val verified = request("POST", "/auth/v1/verify", null,
+            JSONObject().put("phone", phone.trim())
+                .put("token", otp.trim()).put("type", "sms"))
+        val user = verified.getJSONObject("user")
+        val session = Session(
+            accessToken = verified.getString("access_token"),
+            userId = user.getString("id"),
+            refreshToken = verified.getString("refresh_token"),
+            expiresAtEpochMs = System.currentTimeMillis() +
+                verified.optLong("expires_in", 3600L) * 1000L,
+            requiresPasswordChange = user.optJSONObject("app_metadata")
+                ?.optBoolean("socyto_password_reset_required", false) == true
+        )
+        if (session.requiresPasswordChange) completeClientFirstLogin(session, newPassword)
+        else request("PUT", "/auth/v1/user", session,
+            JSONObject().put("password", newPassword))
+    }
+
     fun signIn(email: String, password: String): Session {
+        val authEmail = AccountIdentifiers.authenticationEmail(email)
         val response = request("POST", "/auth/v1/token?grant_type=password", null,
-            JSONObject().put("email", email).put("password", password))
+            JSONObject().put("email", authEmail).put("password", password))
         return Session(
             accessToken = response.getString("access_token"),
             userId = response.getJSONObject("user").getString("id"),

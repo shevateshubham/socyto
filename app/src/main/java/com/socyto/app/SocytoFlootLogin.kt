@@ -27,6 +27,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import com.socyto.app.data.SocytoApi
+import com.socyto.app.data.AccountIdentifiers
 import java.util.Locale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,14 +37,16 @@ import androidx.compose.ui.unit.sp
 /** Real authenticated SOCYTO login, translated from Floot's editorial login study. */
 @Composable
 fun SocytoFlootLogin(
+    api: SocytoApi,
     enabled: Boolean,
     backendConfigured: Boolean,
     onLogin: (String, String) -> Unit,
     onSignUp: (String, String) -> Unit
 ) {
     val configuration = LocalConfiguration.current
-    val landscape = configuration.screenWidthDp > configuration.screenHeightDp
-    val compact = configuration.screenWidthDp < 370
+    val landscape = configuration.screenWidthDp > configuration.screenHeightDp &&
+        configuration.screenWidthDp >= 740 && configuration.screenHeightDp >= 600
+    val compact = configuration.screenWidthDp < 370 || configuration.screenHeightDp < 480
     val color = MaterialTheme.colorScheme
     val primary = color.primary
     val secondary = color.secondary
@@ -50,6 +54,7 @@ fun SocytoFlootLogin(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             FlootEditorialHero(compact = true, modifier = Modifier.weight(1f))
             FlootCredentialCard(
+                api = api,
                 enabled = enabled, backendConfigured = backendConfigured,
                 landscape = true, modifier = Modifier.weight(1f),
                 onLogin = onLogin, onSignUp = onSignUp
@@ -59,6 +64,7 @@ fun SocytoFlootLogin(
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             FlootEditorialHero(compact = compact)
             FlootCredentialCard(
+                api = api,
                 enabled = enabled, backendConfigured = backendConfigured,
                 landscape = false, modifier = Modifier.fillMaxWidth(),
                 onLogin = onLogin, onSignUp = onSignUp
@@ -152,6 +158,7 @@ private fun FlootEditorialHero(
 
 @Composable
 private fun FlootCredentialCard(
+    api: SocytoApi,
     enabled: Boolean,
     backendConfigured: Boolean,
     landscape: Boolean,
@@ -164,6 +171,13 @@ private fun FlootCredentialCard(
     var password by remember { mutableStateOf("") }
     var signingUp by remember { mutableStateOf(false) }
     var passwordVisible by remember { mutableStateOf(false) }
+    var recovering by remember { mutableStateOf(false) }
+    var recoveryPhone by remember { mutableStateOf("") }
+    var recoveryOtp by remember { mutableStateOf("") }
+    var recoveryPassword by remember { mutableStateOf("") }
+    var recoveryRequested by remember { mutableStateOf(false) }
+    var recoveryBusy by remember { mutableStateOf(false) }
+    var recoveryMessage by remember { mutableStateOf("") }
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(25.dp),
@@ -192,32 +206,94 @@ private fun FlootCredentialCard(
                     fontWeight = FontWeight.Bold,
                     color = color.secondary)
             }
-            Text(if (signingUp) "Create your workspace access."
-                 else "Make room for great work.",
+            Text(if (recovering) "Recover access."
+                 else if (signingUp) "Set up platform access."
+                 else "Welcome back.",
                 style = (if (landscape) MaterialTheme.typography.titleMedium
                     else MaterialTheme.typography.headlineSmall)
                     .copy(fontFamily = FontFamily.Serif),
                 maxLines = 2, color = color.primary)
             if (!landscape) Text(
-                if (signingUp) "Register with your real email. An administrator assigns your access."
-                    else "Refined, secure access to your workspace.",
+                if (recovering) "Confirm your registered mobile number before changing your password."
+                    else if (signingUp) "Super Admin setup uses a verified email. Firms and clients receive separate IDs."
+                    else "Use your firm ID, client ID or administrator email to sign in.",
                 style = MaterialTheme.typography.bodySmall,
                 color = color.onSurfaceVariant
             )
             if (!backendConfigured) Text(
                 "The cloud connection is unavailable in this build.",
                 style = MaterialTheme.typography.bodySmall, color = color.error)
+            if (recovering) {
+                Text("Reset password using verified mobile number",
+                    style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(recoveryPhone, { recoveryPhone = it },
+                    label = { Text("Registered mobile (+91...)") },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    supportingText = { Text("Use the number registered when the account was created") })
+                if (recoveryRequested) {
+                    OutlinedTextField(recoveryOtp, { recoveryOtp = it },
+                        label = { Text("SMS verification code") },
+                        modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(recoveryPassword, { recoveryPassword = it },
+                        label = { Text("New password (12+ characters, letters and numbers)") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    Button(enabled = enabled && !recoveryBusy &&
+                        Regex("^[0-9]{6,8}$").matches(recoveryOtp.trim()) &&
+                        recoveryPassword.length in 12..128 &&
+                        recoveryPassword.any { it.isLetter() } &&
+                        recoveryPassword.any { it.isDigit() },
+                        onClick = {
+                            recoveryBusy = true
+                            recoveryMessage = ""
+                            api.async({ api.recoverPasswordWithOtp(recoveryPhone, recoveryOtp, recoveryPassword) }) { result ->
+                                recoveryBusy = false
+                                result.onSuccess {
+                                    recoveryMessage = "Password updated. Sign in with your login ID and new password."
+                                    recoveryRequested = false
+                                    recoveryPassword = ""
+                                    recoveryOtp = ""
+                                }.onFailure {
+                                    recoveryMessage = it.message ?: "Phone verification or password reset failed."
+                                }
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) { Text("Verify SMS & reset password") }
+                } else {
+                    Button(enabled = enabled && !recoveryBusy &&
+                        AccountIdentifiers.validPhone(recoveryPhone),
+                        onClick = {
+                            recoveryBusy = true
+                            recoveryMessage = ""
+                            api.async({ api.sendRecoveryOtp(recoveryPhone.trim()) }) { result ->
+                                recoveryBusy = false
+                                result.onSuccess {
+                                    recoveryRequested = true
+                                    recoveryMessage = "If this number is registered and SMS is configured, a code has been sent."
+                                }.onFailure {
+                                    recoveryMessage = it.message ?: "Unable to request SMS verification."
+                                }
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) { Text("Send SMS verification code") }
+                }
+                if (recoveryBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (recoveryMessage.isNotBlank()) Text(recoveryMessage,
+                    style = MaterialTheme.typography.bodySmall)
+                TextButton(onClick = { recovering = false; recoveryRequested = false; recoveryOtp = ""; recoveryPassword = ""; recoveryMessage = "" },
+                    modifier = Modifier.fillMaxWidth()) { Text("Back to sign in") }
+            } else {
             OutlinedTextField(
                 value = email, onValueChange = { email = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Email address") },
+                label = { Text(if (signingUp) "Administrator email" else "Login ID or administrator email") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                keyboardOptions = KeyboardOptions(keyboardType = if (signingUp) KeyboardType.Email else KeyboardType.Text),
+                supportingText = { Text(if (signingUp) "Email verification required" else "Firm IDs begin F; client IDs begin C") },
                 shape = RoundedCornerShape(12.dp)
             )
-            if (email.isNotBlank()) {
+            if (email.isNotBlank() && email.contains("@")) {
                 Text(
-                    "Full email: " + email.trim().lowercase(Locale.ROOT),
+                    "Email: " + email.trim().lowercase(Locale.ROOT),
                     style = MaterialTheme.typography.labelSmall,
                     color = color.onSurfaceVariant,
                     maxLines = 3,
@@ -246,7 +322,7 @@ private fun FlootCredentialCard(
             )
             Button(
                 enabled = enabled && backendConfigured &&
-                    email.contains("@") && password.length >= (if (signingUp) 8 else 1),
+                    (if (signingUp) email.contains("@") else email.contains("@") || AccountIdentifiers.isAccountCode(email)) && password.length >= (if (signingUp) 8 else 1),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp),
                 shape = RoundedCornerShape(12.dp),
                 onClick = {
@@ -261,9 +337,14 @@ private fun FlootCredentialCard(
                     contentDescription = null, modifier = Modifier.size(18.dp))
             }
             TextButton(
-                modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 onClick = { signingUp = !signingUp }
-            ) { Text(if (signingUp) "Already registered? Sign in" else "Create an account") }
+            ) { Text(if (signingUp) "Back to sign in" else "Set up Super Admin account") }
+            if (!signingUp) {
+                TextButton(onClick = { recovering = true },
+                    modifier = Modifier.fillMaxWidth()) { Text("Forgot password? Reset using mobile") }
+            }
+            }
             if (!landscape) {
                 HorizontalDivider(color = color.outlineVariant.copy(alpha = .65f))
                 Row(verticalAlignment = Alignment.CenterVertically) {

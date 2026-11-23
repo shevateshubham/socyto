@@ -23,52 +23,86 @@ import com.socyto.app.data.SocytoApi
 @Composable
 fun SocytoOneTimeCredentials(
     credentials: ClientTemporaryCredentials,
+    accountLabel: String = "CLIENT",
     onDismiss: () -> Unit
 ) {
     val clipboard = LocalClipboardManager.current
+    var visible by remember(credentials.email) { mutableStateOf(false) }
+    var acknowledged by remember(credentials.email) { mutableStateOf(false) }
+
+    SocytoPageHeading(
+        "STEP COMPLETE",
+        "$accountLabel access created",
+        "Save and share this account's sign-in details privately."
+    )
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.primaryContainer
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-            Text("CLIENT ACCESS READY", style = MaterialTheme.typography.labelSmall,
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("ONE-TIME ACCESS DETAILS",
+                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+            }
+            Text("Login ID", style = MaterialTheme.typography.labelMedium)
+            Text(credentials.email,
+                style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.primary)
-            Text("Share these credentials privately",
-                style = MaterialTheme.typography.titleLarge)
-            Text(
-                "This temporary password is shown only once. Give it to your client using a private channel. " +
-                "They must replace it at their first sign-in.",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text("Client email", style = MaterialTheme.typography.labelSmall)
-            Text(credentials.email, maxLines = 3, overflow = TextOverflow.Ellipsis)
             OutlinedButton(
                 onClick = { clipboard.setText(AnnotatedString(credentials.email)) },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
             ) {
                 Icon(Icons.Filled.ContentCopy, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Copy client email")
+                Text("Copy login ID")
             }
-            Text("One-time temporary password", style = MaterialTheme.typography.labelSmall)
-            Text(credentials.temporaryPassword, style = MaterialTheme.typography.bodyLarge)
+            HorizontalDivider()
+            Text("Temporary password", style = MaterialTheme.typography.labelMedium)
+            Text(
+                if (visible) credentials.temporaryPassword else "••••••••••••••••",
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = if (visible) Int.MAX_VALUE else 1
+            )
+            TextButton(
+                onClick = { visible = !visible },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                    contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (visible) "Hide password" else "Show password")
+            }
             Button(
                 onClick = { clipboard.setText(AnnotatedString(credentials.temporaryPassword)) },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
             ) {
                 Icon(Icons.Filled.ContentCopy, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text("Copy temporary password")
             }
-            Text(
-                "After closing, SOCYTO cannot display this password again. " +
-                    "If the client loses it, use the secure password-recovery process.",
-                style = MaterialTheme.typography.bodySmall
+            SocytoPrivacyNotice(
+                "The temporary password will not be shown again after closing this screen. " +
+                    "The account owner must create a personal password at first login."
             )
-            OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                Text("I've shared the credentials · Close")
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Checkbox(checked = acknowledged, onCheckedChange = { acknowledged = it })
+                Text("I have shared or securely saved these credentials.",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodySmall)
             }
+            Button(
+                enabled = acknowledged,
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)
+            ) { Text("Done — continue") }
         }
     }
 }

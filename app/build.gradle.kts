@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -16,8 +18,8 @@ android {
         applicationId = "com.socyto.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "0.8.0"
+        versionCode = 11
+        versionName = "0.8.1"
         // Publishable client keys are not secrets; never use a service-role key in an APK.
         val backendUrl = socytoBackendUrl
         val publishableKey = socytoPublishableKey
@@ -47,7 +49,7 @@ tasks.register("verifyProductionBackend") {
         val url = socytoBackendUrl
         val key = socytoPublishableKey
         check(url.startsWith("https://") && runCatching {
-            val parsed = java.net.URI(url)
+            val parsed = URI(url)
             parsed.host?.endsWith(".supabase.co") == true && parsed.userInfo == null &&
                 parsed.query == null && parsed.fragment == null
         }.getOrDefault(false)) {

@@ -35,3 +35,16 @@ If anything conflicts, document it and request a decision instead of inventing b
 
 ## Definition of done
 Acceptance criteria implemented; security checks covered; tests/build run or limitations disclosed; no placeholders in production; docs updated; diff reviewed.
+
+## Account onboarding workflow
+- Follow .agents/skills/account-onboarding/SKILL.md for firm/client identity changes.
+- Read docs/PHONE_ID_ONBOARDING.md before editing provisioning, password recovery or user-access screens.
+- Never merge an account-flow change without confirming Auth configuration, compile/unit tests, per-role end-to-end checks and live RLS restrictions.
+
+## Mandatory installed-skill and responsive-design rule (2026-11-23)
+- Before changing SOCYTO, inspect the relevant **installed skills** and the repository's `.agents/skills/` guidance; explicitly apply those that fit the task. For backend use Supabase; for Android use android-compose, account-onboarding and the responsive-ui-audit skill.
+- The video toolkit in `docs/codex-video-toolkit.md` is a resource catalog, not proof that every external package is installed. Review licences and security before adding dependencies; reuse our skills-first workflow as in Vardhiva.
+- Treat screenshots and device behavior as acceptance evidence. On Android 15/16/17 reserve status and navigation bar insets; never draw app labels beneath the clock, notch, battery indicators or gesture area.
+- Every major screen must be inspected at compact, standard, tablet, portrait, landscape, 1.5x+ font and keyboard-visible sizes. Check both visual rendering and accessible actionable controls.
+- UI colors are centralized as tokens and user-firm branding remains data-driven. No new hardcoded sample projects, login credentials, fake records or decorative disabled controls.
+- A passing Gradle compilation is insufficient to claim responsive UI validated: review emulator screenshots or device screenshots and report evidence/limitations.
