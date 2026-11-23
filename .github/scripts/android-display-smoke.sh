@@ -108,9 +108,16 @@ PY
 
 # Swipes must originate INSIDE the app's scrollable surface, not at x=12;
 # the screen edge is reserved for Android system navigation gestures.
-SIZE="$(adb shell wm size | tail -n 1 | grep -oE '[0-9]+x[0-9]+' | tail -n 1)"
-ACTUAL_W="${SIZE%x*}"
-ACTUAL_H="${SIZE#*x}"
+# wm size reports *natural* dimensions. Rotation changes screenshot width/height,
+# so calculate swipe coordinates from the PNG the emulator actually rendered.
+read -r ACTUAL_W ACTUAL_H < <(python3 - "$OUT/01-login-initial.png" <<'PY'
+import struct,sys
+with open(sys.argv[1],'rb') as f:
+    header=f.read(24)
+assert header[:8]==b'\\x89PNG\\r\\n\\x1a\\n', 'Initial screenshot is not PNG'
+print(*struct.unpack('>II',header[16:24]))
+PY
+)
 TOUCH_X=$(( ACTUAL_W*2/3 ))
 for num in 2 3 4 5 6; do
     adb shell input touchscreen swipe "$TOUCH_X" "$(( ACTUAL_H*4/5 ))" "$TOUCH_X" "$(( ACTUAL_H/4 ))" 450
