@@ -21,6 +21,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -53,7 +54,7 @@ private fun SocytoApp() {
     val brandAccent = hexColor(branding?.accentColorHex ?: "#D4AF7C", Color(0xFFD4AF7C))
     val brandSecondary = hexColor(branding?.secondaryColorHex ?: "#6B8E49", Color(0xFF6B8E49))
     val onPrimary = if (android.graphics.Color.luminance(
-        android.graphics.Color.parseColor(branding?.primaryColorHex ?: "#2E4A2B")
+        brandPrimary.toArgb()
     ) > 0.4f) Color.Black else Color.White
 
     var scope by remember { mutableStateOf<AccountScope?>(null) }
@@ -61,6 +62,7 @@ private fun SocytoApp() {
     var message by remember { mutableStateOf("") }
     var showManagement by remember { mutableStateOf(false) }
     var showBusinessRegistration by remember { mutableStateOf(false) }
+    var bootstrapCode by remember { mutableStateOf("") }
     var projectSection by remember { mutableIntStateOf(0) }
     var workspaceTab by remember { mutableStateOf("overview") }
     var projects by remember { mutableStateOf(emptyList<ProjectSummary>()) }
@@ -280,6 +282,39 @@ private fun SocytoApp() {
                 val authenticated = session!!
                 if (scope == AccountScope.Unassigned) {
                     Text("Signed in, but no firm or project access assigned. Ask your SOCYTO administrator to link your verified account.")
+                    SocytoStepCard(
+                        "One-time administrator activation",
+                        "Activate Super Admin",
+                        "Only use an invitation issued by your SOCYTO database administrator. Signing up alone never grants administrator permissions."
+                    ) {
+                        OutlinedTextField(
+                            bootstrapCode, { bootstrapCode = it.trim() },
+                            label = { Text("One-time activation code") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation()
+                        )
+                        Button(
+                            enabled = !busy && Regex("^[a-f0-9]{64}$").matches(bootstrapCode),
+                            onClick = {
+                                busy = true
+                                message = ""
+                                api.async({
+                                    api.claimPlatformAdmin(authenticated, bootstrapCode)
+                                    api.accountScope(authenticated)
+                                }) { result ->
+                                    busy = false
+                                    result.onSuccess { updatedScope ->
+                                        bootstrapCode = ""
+                                        scope = updatedScope
+                                        loadWorkspace(authenticated, updatedScope)
+                                    }.onFailure {
+                                        message = it.message ?: "Unable to activate Super Admin."
+                                    }
+                                }
+                            }
+                        ) { Text("Activate using invitation") }
+                    }
                     OutlinedButton(onClick = {
                         busy = true
                         api.async({ api.accountScope(authenticated) }) { result ->
@@ -294,9 +329,8 @@ private fun SocytoApp() {
                     val firm = selectedBusiness!!
                     BusinessBrandEditor(
                         business = firm,
-                        current = branding?.takeIf { it.businessId == firm.id }?.let {
-                            if (it.displayName == "Project workspace") it.copy(displayName = firm.name) else it
-                        } ?: BusinessBranding(firm.id, firm.name),
+                        current = branding?.takeIf { it.businessId == firm.id }
+                            ?: BusinessBranding(firm.id, firm.name),
                         session = authenticated,
                         api = api,
                         onSaved = { updated ->

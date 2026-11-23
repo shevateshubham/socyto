@@ -46,8 +46,9 @@ sealed class AccountScope {
 class SocytoApi {
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
-    val isConfigured: Boolean get() = BuildConfig.SUPABASE_URL.startsWith("https://") &&
-        BuildConfig.SUPABASE_PUBLISHABLE_KEY.isNotBlank()
+    val isConfigured: Boolean get() =
+        BuildConfig.SUPABASE_URL.startsWith("https://") &&
+        BuildConfig.SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_")
 
     fun <T> async(operation: () -> T, completion: (Result<T>) -> Unit) {
         executor.execute {
@@ -65,11 +66,23 @@ class SocytoApi {
             JSONObject().put("email", email.trim()).put("password", password))
     }
 
+    /** A verified new account may redeem an expiring, single-use administrator invitation. */
+    fun claimPlatformAdmin(session: Session, invitationCode: String) {
+        require(Regex("^[a-f0-9]{64}$").matches(invitationCode.trim())) {
+            "Enter the 64-character one-time activation code."
+        }
+        val response = request("POST", "/rest/v1/rpc/claim_platform_admin_bootstrap",
+            session, JSONObject().put("one_time_code", invitationCode.trim()))
+        check(response.optBoolean("_value", false)) {
+            "Super Admin activation was not confirmed."
+        }
+    }
+
     /** Only a platform administrator can register a new firm. */
     fun registerFirm(
         session: Session, businessName: String, administratorEmail: String, businessType: String
     ) {
-        require(businessName.trim().length in 2..120)
+        require(businessName.trim().length in 2..80)
         require(administratorEmail.contains("@"))
         request("POST", "/rest/v1/rpc/register_business_for_verified_email", session,
             JSONObject().put("new_business_name", businessName.trim())
@@ -172,16 +185,16 @@ class SocytoApi {
             "business_id=eq.${encode(businessId)}",
             session
         )
-        if (rows.length() == 0) {
-            // Use the actual business name for admins; clients receive a neutral fallback.
-            return BusinessBranding(businessId, "Project workspace")
+        check(rows.length() == 1) {
+            "Business branding is unavailable. Ask an administrator to configure this workspace."
         }
         val row = rows.getJSONObject(0)
         fun stringOrNull(name: String): String? =
             if (row.isNull(name)) null else row.optString(name)
         return BusinessBranding(
             businessId = businessId,
-            displayName = BrandValidator.displayNameOrFallback(stringOrNull("display_name"), "Project workspace"),
+            displayName = stringOrNull("display_name")?.trim()?.takeIf { it.isNotBlank() }
+                ?: error("Business display name is missing. Ask an administrator to update branding."),
             logoUrl = stringOrNull("logo_storage_path")?.let { logoPath ->
                 BrandValidator.logoUrlOrNull(
                     BuildConfig.SUPABASE_URL.trimEnd('/') +
@@ -336,8 +349,18 @@ class SocytoApi {
         session: Session, project: ProjectSummary, requirement: RequirementSummary,
         completed: Boolean, completedQuantity: Double
     ) {
-        require(completedQuantity.isFinite() && completedQuantity >= 0)
+        require(completedQuantity.isFinite() && completedQuantity >= 0) {
+            "Completed quantity must be a nonnegative finite number."
+        }
         require(requirement.type == "checklist" || requirement.type == "quantity")
+        if (requirement.type == "quantity") {
+            val required = requireNotNull(requirement.requiredQuantity) {
+                "Quantity requirement is missing a required quantity."
+            }
+            require(ProgressMath.isValidQuantityUpdate(required, completedQuantity)) {
+                "Completed quantity must be between zero and the required quantity."
+            }
+        }
         val body = JSONObject()
         if (requirement.type == "checklist") body.put("is_completed", completed)
         else body.put("completed_quantity", completedQuantity)
@@ -475,7 +498,7 @@ class SocytoApi {
                 val message = when {
                     onboardingError.isNotBlank() -> onboardingError
                     authLogin && status == 400 ->
-                        "Email or password is incorrect. Check the full email and paste the exact test password."
+                        "Email or password is incorrect. Check your credentials and try again."
                     authLogin && status == 429 ->
                         "Too many sign-in attempts. Please try again later."
                     status == 401 || status == 403 ->

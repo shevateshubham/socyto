@@ -22,11 +22,15 @@ fun RegisterBusinessForm(
 
     HorizontalDivider()
     Text("Register new business", style = MaterialTheme.typography.titleLarge)
-    Text("The firm administrator must create an account and verify their email before registration.")
+    Text(
+        "Step 1: Ask the firm administrator to create a SOCYTO account using their own email, and verify it. " +
+            "Step 2: Sign back in as Super Admin and register the firm with that verified email. " +
+            "Step 3: Activate the new firm before its administrator signs in."
+    )
     OutlinedTextField(name, { name = it }, label = { Text("Legal / business name") },
         modifier = Modifier.fillMaxWidth(), singleLine = true)
     OutlinedTextField(adminEmail, { adminEmail = it },
-        label = { Text("Administrator's verified email") },
+        label = { Text("Verified Firm Admin email") },
         modifier = Modifier.fillMaxWidth(), singleLine = true)
     Text("Business type")
     listOf(
@@ -55,8 +59,8 @@ fun RegisterBusinessForm(
                 }.onFailure { message = it.message ?: "Business registration failed." }
             }
         },
-        enabled = !saving && name.trim().length in 2..120 &&
-            adminEmail.contains("@"),
+        enabled = !saving && name.trim().length in 2..80 &&
+            ProjectInputRules.validEmail(adminEmail),
         modifier = Modifier.fillMaxWidth()
     ) { Text("Register firm") }
     if (saving) LinearProgressIndicator(Modifier.fillMaxWidth())
