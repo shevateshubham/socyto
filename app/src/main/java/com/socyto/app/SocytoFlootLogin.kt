@@ -199,8 +199,8 @@ private fun FlootCredentialCard(
                     .copy(fontFamily = FontFamily.Serif),
                 maxLines = 2, color = color.primary)
             if (!landscape) Text(
-                if (signingUp) "Register with your real email. An administrator assigns your access."
-                    else "Refined, secure access to your workspace.",
+                if (signingUp) "Email registration is reserved for initial platform-administrator setup. Firm and client accounts are created by their administrators."
+                    else "Use the F/C login ID shared with you, or your existing administrator email.",
                 style = MaterialTheme.typography.bodySmall,
                 color = color.onSurfaceVariant
             )
@@ -210,14 +210,14 @@ private fun FlootCredentialCard(
             OutlinedTextField(
                 value = email, onValueChange = { email = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("Email address") },
+                label = { Text(if (signingUp) "Email address" else "Firm ID / Client ID / admin email") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 shape = RoundedCornerShape(12.dp)
             )
-            if (email.isNotBlank()) {
+            if (email.isNotBlank() && email.contains("@")) {
                 Text(
-                    "Full email: " + email.trim().lowercase(Locale.ROOT),
+                    "Email: " + email.trim().lowercase(Locale.ROOT),
                     style = MaterialTheme.typography.labelSmall,
                     color = color.onSurfaceVariant,
                     maxLines = 3,
@@ -246,7 +246,7 @@ private fun FlootCredentialCard(
             )
             Button(
                 enabled = enabled && backendConfigured &&
-                    email.contains("@") && password.length >= (if (signingUp) 8 else 1),
+                    (if (signingUp) email.contains("@") else email.contains("@") || Regex("^[FC][0-9]{9}$").matches(email.trim().uppercase(Locale.ROOT))) && password.length >= (if (signingUp) 8 else 1),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp),
                 shape = RoundedCornerShape(12.dp),
                 onClick = {
