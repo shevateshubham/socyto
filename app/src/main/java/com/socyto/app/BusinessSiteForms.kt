@@ -34,6 +34,7 @@ fun BusinessManagementPanel(
     var intakeTab by remember(business.id) { mutableIntStateOf(0) }
     var loading by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
+    var oneTimeCredentials by remember(business.id) { mutableStateOf<ClientTemporaryCredentials?>(null) }
 
     LaunchedEffect(business.id) {
         api.async({ api.clients(session, business.id) }) { result ->
@@ -41,6 +42,11 @@ fun BusinessManagementPanel(
         }
     }
 
+    if (oneTimeCredentials != null) {
+        SocytoOneTimeCredentials(oneTimeCredentials!!) {
+            oneTimeCredentials = null
+        }
+    } else {
     SocytoSectionHeader(
         "Set up a project",
         "Create a client first, then connect their project to your practice"
@@ -61,12 +67,12 @@ fun BusinessManagementPanel(
     )
     OutlinedTextField(
         value = clientEmail, onValueChange = { clientEmail = it },
-        label = { Text("Client email (optional)") }, modifier = Modifier.fillMaxWidth(),
+        label = { Text("Client email (required for login)") }, modifier = Modifier.fillMaxWidth(),
         singleLine = true
     )
     Button(
         enabled = !loading && ProjectInputRules.validName(clientName) &&
-            ProjectInputRules.validEmail(clientEmail),
+            clientEmail.isNotBlank() && ProjectInputRules.validEmail(clientEmail),
         onClick = {
             loading = true
             message = ""
@@ -114,9 +120,31 @@ fun BusinessManagementPanel(
         }
         val selectedClient = clients.firstOrNull { it.id == selectedClientId }
         if (selectedClient != null) {
+            Text(
+                "After creating a project, SOCYTO automatically creates a new client login " +
+                    "when this client has an unused email. Existing users keep their passwords.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             OutlinedButton(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !loading,
+                onClick = {
+                    loading = true
+                    message = ""
+                    api.async({
+                        api.provisionClientLogin(session, business.id, selectedClient.id)
+                    }) { result ->
+                        loading = false
+                        result.onSuccess { credentials ->
+                            oneTimeCredentials = credentials
+                        }.onFailure {
+                            message = it.message ?: "Unable to create client login."
+                        }
+                    }
+                }
+            ) { Text("Issue temporary login for an existing project") }
+            TextButton(
                 onClick = {
                     loading = true
                     message = ""
@@ -125,13 +153,13 @@ fun BusinessManagementPanel(
                     }) { result ->
                         loading = false
                         result.onSuccess {
-                            message = "Verified login linked for " + selectedClient.name
+                            message = "Existing verified login linked for " + selectedClient.name
                         }.onFailure {
                             message = it.message ?: "Client login linking failed."
                         }
                     }
                 }
-            ) { Text("Link verified client login") }
+            ) { Text("Already has an account? Link verified login") }
         }
         OutlinedTextField(
             projectName, { projectName = it }, label = { Text("Project name") },
@@ -153,18 +181,28 @@ fun BusinessManagementPanel(
                 loading = true
                 message = ""
                 api.async({
-                    api.createProject(
+                    val project = api.createProject(
                         session, business.id, clientId, projectName,
                         projectType, projectLocation
                     )
+                    // Provisioning failure must not delete or duplicate the saved project.
+                    project to runCatching {
+                        api.provisionClientLogin(session, business.id, clientId)
+                    }
                 }) { result ->
                     loading = false
-                    result.onSuccess { project ->
+                    result.onSuccess { (project, provisionResult) ->
                         projectName = ""
                         projectType = ""
                         projectLocation = ""
-                        message = "Project saved to database."
                         onProjectCreated(project)
+                        provisionResult.onSuccess { credentials ->
+                            oneTimeCredentials = credentials
+                            message = ""
+                        }.onFailure { problem ->
+                            message = "Project saved. Client login was not issued: " +
+                                (problem.message ?: "Try issuing temporary login.")
+                        }
                     }.onFailure { message = it.message ?: "Unable to save project." }
                 }
             }
@@ -172,9 +210,11 @@ fun BusinessManagementPanel(
     }
     }
     }
+    }
     if (loading) LinearProgressIndicator(Modifier.fillMaxWidth())
     if (message.isNotBlank()) SocytoFeedback(message,
-        isError = message.contains("unable",true) || message.contains("failed",true),
+        isError = message.contains("unable",true) || message.contains("failed",true) ||
+            message.contains("not issued", true),
         onDismiss = { message = "" })
 }
 
