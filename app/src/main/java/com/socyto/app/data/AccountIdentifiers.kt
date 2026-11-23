@@ -15,7 +15,7 @@ object AccountIdentifiers {
 
     fun authenticationEmail(input: String): String {
         val normalized = input.trim().lowercase(Locale.ROOT)
-        return if (isAccountCode(input)) "$"+"{normalized}@$"+"{reservedLoginDomain}"
+        return if (isAccountCode(input)) normalized + "@" + reservedLoginDomain
         else normalized
     }
 }
