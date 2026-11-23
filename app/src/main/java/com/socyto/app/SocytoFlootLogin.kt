@@ -178,6 +178,10 @@ private fun FlootCredentialCard(
     var recoveryRequested by remember { mutableStateOf(false) }
     var recoveryBusy by remember { mutableStateOf(false) }
     var recoveryMessage by remember { mutableStateOf("") }
+    var phoneSignUpPending by remember { mutableStateOf(false) }
+    var phoneSignUpBusy by remember { mutableStateOf(false) }
+    var phoneSignUpCode by remember { mutableStateOf("") }
+    var phoneSignUpMessage by remember { mutableStateOf("") }
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(25.dp),
@@ -215,8 +219,8 @@ private fun FlootCredentialCard(
                 maxLines = 2, color = color.primary)
             if (!landscape) Text(
                 if (recovering) "Confirm your registered mobile number before changing your password."
-                    else if (signingUp) "Super Admin setup uses a verified email. Firms and clients receive separate IDs."
-                    else "Use your firm ID, client ID or administrator email to sign in.",
+                    else if (signingUp) "Use your email or mobile number. Verify ownership before administrator activation."
+                    else "Sign in with your mobile number, email address, or firm/client ID.",
                 style = MaterialTheme.typography.bodySmall,
                 color = color.onSurfaceVariant
             )
@@ -285,10 +289,10 @@ private fun FlootCredentialCard(
             OutlinedTextField(
                 value = email, onValueChange = { email = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(if (signingUp) "Administrator email" else "Login ID or administrator email") },
+                label = { Text(if (signingUp) "Mobile number or email address" else "Mobile, email or account ID") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = if (signingUp) KeyboardType.Email else KeyboardType.Text),
-                supportingText = { Text(if (signingUp) "Email verification required" else "Firm IDs begin F; client IDs begin C") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                supportingText = { Text("Use +91… for an Indian mobile number; firm/client IDs begin F/C") },
                 shape = RoundedCornerShape(12.dp)
             )
             if (email.isNotBlank() && email.contains("@")) {
@@ -322,13 +326,30 @@ private fun FlootCredentialCard(
             )
             Button(
                 enabled = enabled && backendConfigured &&
-                    (if (signingUp) email.contains("@") else email.contains("@") || AccountIdentifiers.isAccountCode(email)) && password.length >= (if (signingUp) 8 else 1),
+                    (if (signingUp) AccountIdentifiers.validEmail(email) || AccountIdentifiers.validPhone(email)
+                        else AccountIdentifiers.validIdentifier(email)) &&
+                    !phoneSignUpBusy && password.length >= (if (signingUp) 8 else 1),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp),
                 shape = RoundedCornerShape(12.dp),
                 onClick = {
-                    val normalizedEmail = email.trim().lowercase(Locale.ROOT)
-                    if (signingUp) onSignUp(normalizedEmail, password)
-                    else onLogin(normalizedEmail, password)
+                    val identifier = email.trim()
+                    if (!signingUp) {
+                        onLogin(identifier, password)
+                    } else if (AccountIdentifiers.validPhone(identifier)) {
+                        phoneSignUpBusy = true
+                        phoneSignUpMessage = ""
+                        api.async({ api.signUpWithIdentifier(identifier, password) }) { result ->
+                            phoneSignUpBusy = false
+                            result.onSuccess {
+                                phoneSignUpPending = true
+                                phoneSignUpMessage = "Enter the SMS code sent to your mobile."
+                            }.onFailure {
+                                phoneSignUpMessage = it.message ?: "Mobile registration failed."
+                            }
+                        }
+                    } else {
+                        onSignUp(identifier.lowercase(Locale.ROOT), password)
+                    }
                 }
             ) {
                 Text(if (signingUp) "Create account" else "Sign in")
@@ -336,9 +357,12 @@ private fun FlootCredentialCard(
                 Icon(Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null, modifier = Modifier.size(18.dp))
             }
+            if (phoneSignUpBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
+            if (phoneSignUpMessage.isNotBlank()) Text(phoneSignUpMessage,
+                style = MaterialTheme.typography.bodySmall)
             TextButton(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                onClick = { signingUp = !signingUp }
+                onClick = { signingUp = !signingUp; phoneSignUpMessage = ""; phoneSignUpPending = false }
             ) { Text(if (signingUp) "Back to sign in" else "Set up Super Admin account") }
             if (!signingUp) {
                 TextButton(onClick = { recovering = true },
