@@ -23,6 +23,7 @@ import com.socyto.app.data.SocytoApi
 @Composable
 fun SocytoOneTimeCredentials(
     credentials: ClientTemporaryCredentials,
+    accountLabel: String = "CLIENT",
     onDismiss: () -> Unit
 ) {
     val clipboard = LocalClipboardManager.current
@@ -32,16 +33,16 @@ fun SocytoOneTimeCredentials(
         color = MaterialTheme.colorScheme.primaryContainer
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
-            Text("CLIENT ACCESS READY", style = MaterialTheme.typography.labelSmall,
+            Text("$accountLabel ACCESS READY", style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary)
             Text("Share these credentials privately",
                 style = MaterialTheme.typography.titleLarge)
             Text(
-                "This temporary password is shown only once. Give it to your client using a private channel. " +
+                "This temporary password is shown only once. Share it privately with the account owner. " +
                 "They must replace it at their first sign-in.",
                 style = MaterialTheme.typography.bodySmall
             )
-            Text("Client email", style = MaterialTheme.typography.labelSmall)
+            Text("Login ID", style = MaterialTheme.typography.labelSmall)
             Text(credentials.email, maxLines = 3, overflow = TextOverflow.Ellipsis)
             OutlinedButton(
                 onClick = { clipboard.setText(AnnotatedString(credentials.email)) },
@@ -49,7 +50,7 @@ fun SocytoOneTimeCredentials(
             ) {
                 Icon(Icons.Filled.ContentCopy, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Copy client email")
+                Text("Copy login ID")
             }
             Text("One-time temporary password", style = MaterialTheme.typography.labelSmall)
             Text(credentials.temporaryPassword, style = MaterialTheme.typography.bodyLarge)
@@ -63,7 +64,7 @@ fun SocytoOneTimeCredentials(
             }
             Text(
                 "After closing, SOCYTO cannot display this password again. " +
-                    "If the client loses it, use the secure password-recovery process.",
+                    "If the owner loses it, use secure phone verification for recovery.",
                 style = MaterialTheme.typography.bodySmall
             )
             OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
