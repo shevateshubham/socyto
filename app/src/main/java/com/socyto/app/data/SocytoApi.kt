@@ -103,15 +103,12 @@ class SocytoApi {
                 .put("token", oneTimeCode.trim()).put("type", "sms"))
     }
 
-    /** Sends an owner-bound, time-limited invitation to the verified contact.
-     * Only previously pre-approved platform owners are eligible. */
-    fun requestPlatformActivationCode(session: Session): String {
+    /** Explicit, verified-email Primary Owner activation; no second email service. */
+    fun activateVerifiedPrimaryOwner(session: Session) {
         val result = request("POST", "/functions/v1/platform-owner-activation",
             session, JSONObject())
-        return when (result.optString("delivery")) {
-            "email" -> "One-time activation code requested by email. Check your inbox."
-            "phone" -> "One-time activation code requested by SMS. Check your messages."
-            else -> "Activation code delivery requested."
+        check(result.optBoolean("activated", false)) {
+            "Primary Owner activation was not confirmed."
         }
     }
 
