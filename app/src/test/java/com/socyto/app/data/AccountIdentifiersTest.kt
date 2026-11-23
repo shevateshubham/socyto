@@ -18,6 +18,17 @@ class AccountIdentifiersTest {
             AccountIdentifiers.authenticationEmail(" ADMIN@Example.org "))
     }
 
+    @Test fun unifiedInputValidation() {
+        assertTrue(AccountIdentifiers.validEmail("admin@example.org"))
+        assertTrue(AccountIdentifiers.validIdentifier("admin@example.org"))
+        assertTrue(AccountIdentifiers.validIdentifier("+919876543210"))
+        assertTrue(AccountIdentifiers.validIdentifier("F123456789"))
+        assertTrue(AccountIdentifiers.validIdentifier("c123456789"))
+        assertFalse(AccountIdentifiers.validIdentifier("invalid"))
+        assertFalse(AccountIdentifiers.validIdentifier("1234567890"))
+        assertFalse(AccountIdentifiers.validIdentifier("not@valid"))
+    }
+
     @Test fun invalidCodesAndPhones() {
         assertFalse(AccountIdentifiers.isAccountCode("F123"))
         assertFalse(AccountIdentifiers.isAccountCode("X123456789"))
