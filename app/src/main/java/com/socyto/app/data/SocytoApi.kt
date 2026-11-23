@@ -66,6 +66,14 @@ class SocytoApi {
             JSONObject().put("email", email.trim()).put("password", password))
     }
 
+    /** Re-send a registration confirmation using Supabase Auth, without bypassing verification. */
+    fun resendSignupConfirmation(email: String) {
+        require(AccountIdentifiers.validEmail(email)) { "Enter a valid email address." }
+        request("POST", "/auth/v1/resend", null,
+            JSONObject().put("type", "signup")
+                .put("email", email.trim().lowercase(java.util.Locale.ROOT)))
+    }
+
     /** Begin first-time Super Admin registration using either email or phone. */
     fun signUpWithIdentifier(identifier: String, password: String): Boolean {
         val value = identifier.trim()
@@ -579,6 +587,13 @@ class SocytoApi {
             if (status !in 200..299) {
                 // Keep credentials and raw server responses out of the user interface.
                 val authLogin = path.startsWith("/auth/v1/token?grant_type=password")
+                val authErrorCode = if (authLogin) {
+                    runCatching {
+                        val raw = connection.errorStream
+                            ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                        JSONObject(raw).optString("error_code")
+                    }.getOrDefault("")
+                } else ""
                 val onboardingError = if (path == "/functions/v1/client-onboarding") {
                     runCatching {
                         val responseText = connection.errorStream
@@ -588,6 +603,12 @@ class SocytoApi {
                 } else ""
                 val message = when {
                     onboardingError.isNotBlank() -> onboardingError
+                    authLogin && authErrorCode == "email_not_confirmed" ->
+                        "Email not verified. Open the latest confirmation email, or resend it below."
+                    path == "/auth/v1/resend" && status == 429 ->
+                        "Too many verification requests. Please try again later."
+                    path == "/auth/v1/resend" && status >= 400 ->
+                        "Verification email could not be sent. Try again later."
                     (authLogin && status == 400) ||
                         (path == "/functions/v1/account-login" && status == 401) ->
                         "Invalid mobile, email, account ID or password."
