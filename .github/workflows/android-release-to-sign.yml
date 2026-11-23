@@ -1,0 +1,48 @@
+name: SOCYTO Release Build for Private Signing
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/firm-client-code-onboarding]
+    paths:
+      - '.github/workflows/android-release-to-sign.yml'
+permissions:
+  contents: read
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Android SDK
+        shell: bash
+        run: |
+          set -eo pipefail
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+      - name: Compile release and test
+        env:
+          SOCYTO_SUPABASE_URL: 'https://ycpwqdukfsmxrfntsfyd.supabase.co'
+          SOCYTO_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_TO8PiJySbPKM9_bqgXhGbQ_B2Vs_SXZ'
+        run: gradle :app:verifyProductionBackend :app:testDebugUnitTest :app:assembleRelease --no-daemon
+      - name: Prepare aligned release for offline signing
+        run: |
+          set -euo pipefail
+          mkdir -p release-to-sign
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -f -p 4 app/build/outputs/apk/release/app-release-unsigned.apk release-to-sign/SOCYTO-release-unsigned-aligned.apk
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" release-to-sign/apksigner.jar
+          test -s release-to-sign/apksigner.jar
+          test -s release-to-sign/SOCYTO-release-unsigned-aligned.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: socyto-release-to-sign
+          path: release-to-sign/
+          retention-days: 7
+          if-no-files-found: error
