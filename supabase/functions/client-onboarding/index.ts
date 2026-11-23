@@ -94,7 +94,7 @@ Deno.serve(async (req: Request) => {
     return reply(409, { error: "This client already has a login. Use account recovery; no new temporary password was issued." });
 
   const email = typeof client.client_email === "string" ? client.client_email.trim().toLowerCase() : "";
-  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254)
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254)
     return reply(400, { error: "A valid client email is required before issuing a login." });
 
   // Do not take over an existing identity or silently reset an existing user's password.
