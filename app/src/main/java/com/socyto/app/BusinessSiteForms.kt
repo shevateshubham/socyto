@@ -26,7 +26,7 @@ fun BusinessManagementPanel(
 ) {
     var clients by remember(business.id) { mutableStateOf(emptyList<ClientSummary>()) }
     var clientName by remember(business.id) { mutableStateOf("") }
-    var clientEmail by remember(business.id) { mutableStateOf("") }
+    var clientPhone by remember(business.id) { mutableStateOf("") }
     var projectName by remember(business.id) { mutableStateOf("") }
     var projectType by remember(business.id) { mutableStateOf("") }
     var projectLocation by remember(business.id) { mutableStateOf("") }
@@ -66,29 +66,29 @@ fun BusinessManagementPanel(
         singleLine = true
     )
     OutlinedTextField(
-        value = clientEmail, onValueChange = { clientEmail = it },
-        label = { Text("Client email (required for login)") }, modifier = Modifier.fillMaxWidth(),
+        value = clientPhone, onValueChange = { clientPhone = it },
+        label = { Text("Mobile number with country code (+91...)") }, modifier = Modifier.fillMaxWidth(),
         singleLine = true
     )
     Button(
         enabled = !loading && ProjectInputRules.validName(clientName) &&
-            clientEmail.isNotBlank() && ProjectInputRules.validEmail(clientEmail),
+            Regex("^\\+[1-9][0-9]{7,14}$").matches(clientPhone.trim()),
         onClick = {
             loading = true
             message = ""
-            api.async({ api.createClient(session, business.id, clientName, clientEmail) }) { result ->
+            api.async({ api.provisionClientAccount(session, business.id, clientName, clientPhone.trim()) }) { result ->
                 loading = false
-                result.onSuccess { client ->
+                result.onSuccess { (client, generated) ->
                     clients = clients + client
                     selectedClientId = client.id
-                    intakeTab = 1
                     clientName = ""
-                    clientEmail = ""
-                    message = "Client saved to database."
-                }.onFailure { message = it.message ?: "Unable to save client." }
+                    clientPhone = ""
+                    oneTimeCredentials = generated
+                }.onFailure { message = it.message ?: "Unable to create client account." }
             }
-        }
-    , modifier = Modifier.fillMaxWidth()) { Text("Save client & continue") }
+        },
+        modifier = Modifier.fillMaxWidth()
+    ) { Text("Create client & generate credentials") }
     }
     } else {
     SocytoStepCard("Step 02 · Project details", "Start a new project",
@@ -120,46 +120,9 @@ fun BusinessManagementPanel(
         }
         val selectedClient = clients.firstOrNull { it.id == selectedClientId }
         if (selectedClient != null) {
-            Text(
-                "After creating a project, SOCYTO automatically creates a new client login " +
-                    "when this client has an unused email. Existing users keep their passwords.",
+            Text("Client account created. Add a project and publish progress when ready.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !loading,
-                onClick = {
-                    loading = true
-                    message = ""
-                    api.async({
-                        api.provisionClientLogin(session, business.id, selectedClient.id)
-                    }) { result ->
-                        loading = false
-                        result.onSuccess { credentials ->
-                            oneTimeCredentials = credentials
-                        }.onFailure {
-                            message = it.message ?: "Unable to create client login."
-                        }
-                    }
-                }
-            ) { Text("Issue temporary login for an existing project") }
-            TextButton(
-                onClick = {
-                    loading = true
-                    message = ""
-                    api.async({
-                        api.linkClientLogin(session, business.id, selectedClient.id)
-                    }) { result ->
-                        loading = false
-                        result.onSuccess {
-                            message = "Existing verified login linked for " + selectedClient.name
-                        }.onFailure {
-                            message = it.message ?: "Client login linking failed."
-                        }
-                    }
-                }
-            ) { Text("Already has an account? Link verified login") }
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         OutlinedTextField(
             projectName, { projectName = it }, label = { Text("Project name") },
@@ -181,28 +144,16 @@ fun BusinessManagementPanel(
                 loading = true
                 message = ""
                 api.async({
-                    val project = api.createProject(
-                        session, business.id, clientId, projectName,
-                        projectType, projectLocation
-                    )
-                    // Provisioning failure must not delete or duplicate the saved project.
-                    project to runCatching {
-                        api.provisionClientLogin(session, business.id, clientId)
-                    }
+                    api.createProject(session, business.id, clientId, projectName,
+                        projectType, projectLocation)
                 }) { result ->
                     loading = false
-                    result.onSuccess { (project, provisionResult) ->
+                    result.onSuccess { project ->
                         projectName = ""
                         projectType = ""
                         projectLocation = ""
                         onProjectCreated(project)
-                        provisionResult.onSuccess { credentials ->
-                            oneTimeCredentials = credentials
-                            message = ""
-                        }.onFailure { problem ->
-                            message = "Project saved. Client login was not issued: " +
-                                (problem.message ?: "Try issuing temporary login.")
-                        }
+                        message = "Project saved. Publish progress when ready."
                     }.onFailure { message = it.message ?: "Unable to save project." }
                 }
             }
