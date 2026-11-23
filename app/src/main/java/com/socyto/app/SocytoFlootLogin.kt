@@ -44,8 +44,9 @@ fun SocytoFlootLogin(
     onSignUp: (String, String) -> Unit
 ) {
     val configuration = LocalConfiguration.current
-    val landscape = configuration.screenWidthDp > configuration.screenHeightDp && configuration.screenWidthDp >= 740
-    val compact = configuration.screenWidthDp < 370
+    val landscape = configuration.screenWidthDp > configuration.screenHeightDp &&
+        configuration.screenWidthDp >= 740 && configuration.screenHeightDp >= 600
+    val compact = configuration.screenWidthDp < 370 || configuration.screenHeightDp < 480
     val color = MaterialTheme.colorScheme
     val primary = color.primary
     val secondary = color.secondary
