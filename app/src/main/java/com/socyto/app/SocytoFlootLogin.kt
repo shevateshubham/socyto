@@ -331,10 +331,9 @@ private fun FlootCredentialCard(
             OutlinedTextField(
                 value = email, onValueChange = { email = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(if (signingUp) "Mobile number or email address" else "Mobile, email or account ID") },
+                label = { Text("Mobile, email or account ID") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                supportingText = { Text("Use +91… for an Indian mobile number; firm/client IDs begin F/C") },
                 shape = RoundedCornerShape(12.dp)
             )
             if (email.isNotBlank() && email.contains("@")) {
