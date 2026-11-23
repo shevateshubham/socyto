@@ -2,7 +2,7 @@ name: SOCYTO Release Build for Private Signing
 on:
   workflow_dispatch:
   push:
-    branches: [feature/firm-client-code-onboarding, design/responsive-ui-refinement]
+    branches: [feature/firm-client-code-onboarding, design/responsive-ui-refinement, feature/unified-mobile-email-login]
     paths:
       - 'app/**'
       - '.github/workflows/android-release-to-sign.yml'
