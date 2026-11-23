@@ -80,7 +80,7 @@ class SocytoApi {
 
     /** Real server-side firm identity provisioning: no app-generated credentials. */
     fun provisionFirmAccount(session: Session, name: String, phone: String): ClientTemporaryCredentials {
-        require(ProjectInputRules.validName(name) && Regex("^\\+[1-9][0-9]{7,14}$").matches(phone.trim()))
+        require(ProjectInputRules.validName(name) && AccountIdentifiers.validPhone(phone))
         val result = request("POST", "/functions/v1/client-onboarding", session,
             JSONObject().put("action", "provision_firm")
                 .put("firm_name", name.trim()).put("phone", phone.trim()))
@@ -92,7 +92,7 @@ class SocytoApi {
     fun provisionClientAccount(
         session: Session, businessId: String, name: String, phone: String
     ): Pair<ClientSummary, ClientTemporaryCredentials> {
-        require(ProjectInputRules.validName(name) && Regex("^\\+[1-9][0-9]{7,14}$").matches(phone.trim()))
+        require(ProjectInputRules.validName(name) && AccountIdentifiers.validPhone(phone))
         val result = request("POST", "/functions/v1/client-onboarding", session,
             JSONObject().put("action", "provision_client_account")
                 .put("business_id", businessId)
@@ -151,7 +151,7 @@ class SocytoApi {
 
     /** Phone OTP sends only to a previously registered number; it never creates an account. */
     fun sendRecoveryOtp(phone: String) {
-        require(Regex("^\\+[1-9][0-9]{7,14}$").matches(phone.trim()))
+        require(AccountIdentifiers.validPhone(phone))
         request("POST", "/auth/v1/otp", null,
             JSONObject().put("phone", phone.trim()).put("create_user", false)
                 .put("channel", "sms"))
@@ -159,7 +159,7 @@ class SocytoApi {
 
     /** SMS confirmation is performed by Supabase Auth, not an app-side comparison. */
     fun recoverPasswordWithOtp(phone: String, otp: String, newPassword: String) {
-        require(Regex("^\\+[1-9][0-9]{7,14}$").matches(phone.trim()))
+        require(AccountIdentifiers.validPhone(phone))
         require(Regex("^[0-9]{6,8}$").matches(otp.trim()))
         require(newPassword.length in 12..128 && newPassword.any { it.isLetter() } &&
             newPassword.any { it.isDigit() })
@@ -182,10 +182,7 @@ class SocytoApi {
     }
 
     fun signIn(email: String, password: String): Session {
-        val login = email.trim().uppercase(java.util.Locale.ROOT)
-        val authEmail = if (Regex("^[FC][0-9]{9}$").matches(login)) {
-            login.lowercase(java.util.Locale.ROOT) + "@login.socyto.invalid"
-        } else email.trim().lowercase(java.util.Locale.ROOT)
+        val authEmail = AccountIdentifiers.authenticationEmail(email)
         val response = request("POST", "/auth/v1/token?grant_type=password", null,
             JSONObject().put("email", authEmail).put("password", password))
         return Session(
