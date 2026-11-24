@@ -38,7 +38,7 @@ Deno.serve(async (req: Request) => {
   const email=typeof body.administrator_email==="string"?body.administrator_email.trim().toLowerCase():"";
   const type=typeof body.business_type==="string"?body.business_type.trim():"";
   if(name.length<2 || name.length>80 || type.length<2 || type.length>60 ||
-    email.length>254 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))
+    email.length>254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return reply(400,{error:"Enter a valid firm name, administrator email and business type."});
   const password=temporaryPassword();
 
