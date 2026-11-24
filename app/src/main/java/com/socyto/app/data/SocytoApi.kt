@@ -496,7 +496,8 @@ class SocytoApi {
             if (status !in 200..299) {
                 // Keep credentials and raw server responses out of the user interface.
                 val authLogin = path.startsWith("/auth/v1/token?grant_type=password")
-                val onboardingError = if (path == "/functions/v1/client-onboarding" ||\n                    path == "/functions/v1/firm-onboarding") {
+                val onboardingError = if (path == "/functions/v1/client-onboarding" ||
+                    path == "/functions/v1/firm-onboarding") {
                     runCatching {
                         val responseText = connection.errorStream
                             ?.bufferedReader()?.use { it.readText() }.orEmpty()
