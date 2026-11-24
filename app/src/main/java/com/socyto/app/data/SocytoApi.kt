@@ -33,7 +33,26 @@ data class RequirementSummary(
     val unit: String?
 )
 data class MaterialReceiptSummary(val id: String, val materialName: String, val quantity: Double, val unit: String, val amount: Double)
-data class PublishedUpdate(val progress: String, val note: String, val publishedAt: String)
+data class PublishedRequirement(
+    val title: String,
+    val type: String,
+    val completed: Boolean,
+    val requiredQuantity: Double?,
+    val completedQuantity: Double,
+    val unit: String?
+) {
+    fun statusText(): String = if (type == "quantity" && requiredQuantity != null) {
+        val amount = completedQuantity.toBigDecimal().stripTrailingZeros().toPlainString()
+        val target = requiredQuantity.toBigDecimal().stripTrailingZeros().toPlainString()
+        "$amount / $target" + (unit?.takeIf { it.isNotBlank() }?.let { " $it" } ?: "")
+    } else if (completed) "Completed" else "Pending"
+}
+data class PublishedUpdate(
+    val progress: String,
+    val note: String,
+    val publishedAt: String,
+    val requirements: List<PublishedRequirement> = emptyList()
+)
 data class ClientTemporaryCredentials(val email: String, val temporaryPassword: String)
 
 sealed class AccountScope {
@@ -435,19 +454,36 @@ class SocytoApi {
         }
     }
 
-    /** Only immutable published snapshots; draft requirements and receipts are never requested by clients. */
+    /** Client-visible tasks come exclusively from the immutable publication JSON snapshot,
+     * never from the Firm Admin draft requirements table.
+     */
     fun publications(session: Session, project: ProjectSummary): List<PublishedUpdate> {
         val filter = "business_id=eq.${encode(project.businessId)}&project_id=eq.${encode(project.id)}&order=published_at.desc"
-        val rows = getRows("project_publications", "overall_progress_percent,public_update_note,published_at", filter, session)
+        val rows = getRows("project_publications",
+            "overall_progress_percent,public_update_note,published_at,published_requirements",
+            filter, session)
         return (0 until rows.length()).map { i ->
-            rows.getJSONObject(i).let {
-                PublishedUpdate(
-                    if (it.isNull("overall_progress_percent")) "Not calculated" else
-                        "${it.getDouble("overall_progress_percent")}% ",
-                    it.optString("public_update_note", "").takeIf { note -> note != "null" } ?: "",
-                    it.optString("published_at")
+            val item = rows.getJSONObject(i)
+            val snapshot = item.optJSONArray("published_requirements") ?: JSONArray()
+            val publishedTasks = (0 until snapshot.length()).map { index ->
+                val work = snapshot.getJSONObject(index)
+                PublishedRequirement(
+                    title = work.getString("requirement_name"),
+                    type = work.getString("tracking_type"),
+                    completed = work.optBoolean("is_completed", false),
+                    requiredQuantity = if (work.isNull("required_quantity")) null
+                        else work.getDouble("required_quantity"),
+                    completedQuantity = work.optDouble("completed_quantity", 0.0),
+                    unit = work.optString("unit_name", "").takeUnless { it == "null" }
                 )
             }
+            PublishedUpdate(
+                progress = if (item.isNull("overall_progress_percent")) "Not calculated" else
+                    "${item.getDouble("overall_progress_percent")}%",
+                note = item.optString("public_update_note", "").takeUnless { it == "null" } ?: "",
+                publishedAt = item.optString("published_at"),
+                requirements = publishedTasks
+            )
         }
     }
 

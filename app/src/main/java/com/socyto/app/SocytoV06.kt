@@ -96,6 +96,34 @@ fun SocytoProjectOverview(name: String, updates: List<PublishedUpdate>,
                 style = MaterialTheme.typography.labelSmall)
         }
     }
+    if (readOnly && latest != null) {
+        SocytoSectionHeader(
+            "Published project works",
+            "Only requirements approved in the latest studio update"
+        )
+        if (latest.requirements.isEmpty()) {
+            SocytoEmptyState("No published works",
+                "The studio has not included any tasks in its latest update.")
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                latest.requirements.forEach { task ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Column(Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(task.title, style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold)
+                            Text(task.statusText(), style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.secondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
     if (readOnly) SocytoPrivacyNotice(
         "You only see approved progress updates. Unpublished work and material costs remain private.")
 }

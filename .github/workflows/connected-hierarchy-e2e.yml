@@ -1,0 +1,33 @@
+name: SOCYTO Connected Hierarchy E2E
+# Manual only: exercises the actual production API and creates disposable firm/client records.
+# Not triggered by push or pull requests; never use a database service-role key here.
+on:
+  workflow_dispatch:
+jobs:
+  connected-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    concurrency:
+      group: socyto-production-hierarchy-e2e
+      cancel-in-progress: false
+    env:
+      SOCYTO_SUPABASE_URL: https://ycpwqdukfsmxrfntsfyd.supabase.co
+      # Public publishable key (not privileged); production backend enforces RLS.
+      SOCYTO_SUPABASE_PUBLISHABLE_KEY: sb_publishable_TO8PiJySbPKM9_bqgXhGbQ_B2Vs_SXZ
+      SOCYTO_E2E_ADMIN_EMAIL: ${{ secrets.SOCYTO_E2E_ADMIN_EMAIL }}
+      SOCYTO_E2E_ADMIN_PASSWORD: ${{ secrets.SOCYTO_E2E_ADMIN_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check required trusted Super Admin test credentials
+        run: |
+          test -n "$SOCYTO_E2E_ADMIN_EMAIL" || { echo 'Missing SOCYTO_E2E_ADMIN_EMAIL secret'; exit 1; }
+          test -n "$SOCYTO_E2E_ADMIN_PASSWORD" || { echo 'Missing SOCYTO_E2E_ADMIN_PASSWORD secret'; exit 1; }
+      - name: Compile integrity test runner
+        run: python -m py_compile scripts/socyto_connected_e2e.py
+      - name: Run real authenticated hierarchy integrity test
+        run: python -u scripts/socyto_connected_e2e.py

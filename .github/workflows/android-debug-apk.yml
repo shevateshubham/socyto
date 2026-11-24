@@ -26,6 +26,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Verify Python E2E test runner syntax without credentials
+        run: python3 -m py_compile scripts/socyto_connected_e2e.py
       - name: Test and build debug APK
         env:
           SOCYTO_SUPABASE_URL: ${{ vars.SOCYTO_SUPABASE_URL }}
