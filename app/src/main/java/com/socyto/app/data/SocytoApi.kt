@@ -78,16 +78,24 @@ class SocytoApi {
         }
     }
 
-    /** Only a platform administrator can register a new firm. */
+    /** Super Admin provisions firm and credentials atomically via privileged Edge Function.
+     * Credentials are displayed exactly once and never stored by the Android app.
+     */
     fun registerFirm(
         session: Session, businessName: String, administratorEmail: String, businessType: String
-    ) {
+    ): ClientTemporaryCredentials {
         require(businessName.trim().length in 2..80)
         require(administratorEmail.contains("@"))
-        request("POST", "/rest/v1/rpc/register_business_for_verified_email", session,
-            JSONObject().put("new_business_name", businessName.trim())
+        val response = request("POST", "/functions/v1/firm-onboarding", session,
+            JSONObject().put("action", "provision_firm")
+                .put("business_name", businessName.trim())
                 .put("administrator_email", administratorEmail.trim())
-                .put("new_business_type", businessType))
+                .put("business_type", businessType))
+        check(response.optBoolean("success") && response.has("business_id")) {
+            "The firm account was not created."
+        }
+        return ClientTemporaryCredentials(response.getString("email"),
+            response.getString("temporary_password"))
     }
 
     /**
@@ -488,7 +496,8 @@ class SocytoApi {
             if (status !in 200..299) {
                 // Keep credentials and raw server responses out of the user interface.
                 val authLogin = path.startsWith("/auth/v1/token?grant_type=password")
-                val onboardingError = if (path == "/functions/v1/client-onboarding") {
+                val onboardingError = if (path == "/functions/v1/client-onboarding" ||
+                    path == "/functions/v1/firm-onboarding") {
                     runCatching {
                         val responseText = connection.errorStream
                             ?.bufferedReader()?.use { it.readText() }.orEmpty()

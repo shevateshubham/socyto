@@ -16,14 +16,16 @@
 5. Future sign-ins use the same account, without a second activation email, OTP, or role grant.
 6. A different email or unverified account cannot activate the Primary Owner role.
 
-## 2. Register a firm using a real verified account
-1. Sign out of Super Admin. Create a *separate* Firm Admin account using its own controlled email and password.
-2. Verify that firm's email and then sign out.
-3. Sign in as Super Admin. Choose **New firm** and enter its name, business type and verified Firm Admin email.
-4. The database function registers the firm, links the verified Firm Admin and creates branding in one transaction. The firm begins in **pending** state.
-5. In the Super Admin business list, tap **Activate**. Then sign out.
-6. Log in as the Firm Admin. If the firm remains pending or suspended, the Firm Admin will not have project access.
-7. Firm accounts are *not* automatically issued temporary passwords in this release: separate verified signup is required. Do not skip this step.
+## 2. Super Admin provisions firm and Firm Admin login
+1. Sign in as the verified Super Admin.
+2. Choose **New firm** and enter firm name, business type, and the desired Firm Admin email.
+3. Tap **Create firm and Firm Admin login**. The privileged backend creates a real auth identity with a random temporary password and a mandatory password-reset flag. It then registers the firm, membership, and branding using the real signed-in Super Admin permissions. Firm starts **pending**.
+4. The Firm Admin login ID and temporary password are shown **once**, only to Super Admin. Copy and share privately.
+5. In the Super Admin business list, **Activate** the firm.
+6. Sign out; sign in with the newly provisioned Firm Admin login ID and temporary password.
+7. The app must require a password change before granting workspace access. Change password, then sign out and sign back in using the new password.
+8. Only after the firm is active and password reset is complete may the Firm Admin create clients and projects.
+9. Firm Admins do not self-register. Existing emails are never silently taken over or assigned a new password.
 
 ## 3. Firm Admin creates client and project
 1. Open **Clients and new projects**.
@@ -51,4 +53,4 @@
 - Unexpected cross-client access: stop testing and audit RLS immediately.
 
 ## Verification status
-This is an operational checklist, not a record of successful end-to-end manual testing. The full path must be tested using newly registered Super Admin, Firm Admin and Client credentials.
+This is an operational checklist, not a record of successful end-to-end manual testing. The full path must be tested using Super Admin-provisioned Firm Admin and Client credentials.
